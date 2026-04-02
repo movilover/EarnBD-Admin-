@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EarnBD - Admin Panel v2.0</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"/>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; }
+    .sidebar { background: #111113; }
+    .card-3d { transition: all 0.3s ease; }
+    .card-3d:hover { transform: translateY(-6px); box-shadow: 0 15px 35px -10px rgb(16 185 129); }
+    .section { display: none; }
+    .section-active { display: block; }
+    .modal { animation: modalPop 0.3s ease forwards; }
+    @keyframes modalPop { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+  </style>
+</head>
+<body class="bg-[#0a0a0a] text-white">
+
+<div class="flex h-screen">
+
+  <!-- Sidebar -->
+  <div class="w-72 sidebar border-r border-gray-800 p-6 flex flex-col">
+    <div class="flex items-center gap-3 mb-12">
+      <div class="w-11 h-11 bg-gradient-to-br from-emerald-400 to-green-500 rounded-3xl flex items-center justify-center text-3xl shadow-inner">💰</div>
+      <div>
+        <h1 class="text-3xl font-bold tracking-tight">EarnBD</h1>
+        <p class="text-emerald-400 text-sm -mt-1">Admin Control Center</p>
+      </div>
+    </div>
+
+    <nav class="flex-1 space-y-1">
+      <a onclick="showSection('dashboard')" class="flex items-center gap-4 px-6 py-4 rounded-3xl hover:bg-emerald-500/10 active:bg-emerald-500/20 cursor-pointer bg-emerald-500/10">
+        <i class="fa-solid fa-house text-xl"></i><span class="font-medium">Dashboard</span>
+      </a>
+      <a onclick="showSection('users')" class="flex items-center gap-4 px-6 py-4 rounded-3xl hover:bg-emerald-500/10 cursor-pointer">
+        <i class="fa-solid fa-users text-xl"></i><span class="font-medium">Users</span>
+      </a>
+      <a onclick="showSection('withdraw')" class="flex items-center gap-4 px-6 py-4 rounded-3xl hover:bg-emerald-500/10 cursor-pointer">
+        <i class="fa-solid fa-money-bill-wave text-xl"></i><span class="font-medium">Withdraw</span>
+      </a>
+      <a onclick="showSection('tasks')" class="flex items-center gap-4 px-6 py-4 rounded-3xl hover:bg-emerald-500/10 cursor-pointer">
+        <i class="fa-solid fa-list-check text-xl"></i><span class="font-medium">Tasks</span>
+      </a>
+      <a onclick="showSection('plans')" class="flex items-center gap-4 px-6 py-4 rounded-3xl hover:bg-emerald-500/10 cursor-pointer">
+        <i class="fa-solid fa-gem text-xl"></i><span class="font-medium">Plans</span>
+      </a>
+      <a onclick="showSection('broadcast')" class="flex items-center gap-4 px-6 py-4 rounded-3xl hover:bg-emerald-500/10 cursor-pointer">
+        <i class="fa-solid fa-bullhorn text-xl"></i><span class="font-medium">Broadcast</span>
+      </a>
+      <a onclick="showSection('fraud')" class="flex items-center gap-4 px-6 py-4 rounded-3xl hover:bg-emerald-500/10 cursor-pointer">
+        <i class="fa-solid fa-shield-halved text-xl"></i><span class="font-medium">Fraud Logs</span>
+      </a>
+    </nav>
+  </div>
+
+  <!-- Main Area -->
+  <div class="flex-1 overflow-auto">
+
+    <div class="sticky top-0 bg-[#111113] border-b border-gray-800 px-8 py-5 flex justify-between items-center z-50">
+      <h2 id="page-title" class="text-2xl font-bold">Dashboard</h2>
+      <div class="flex items-center gap-6">
+        <div class="bg-emerald-500/10 px-5 py-2 rounded-2xl text-sm">Total Users: <span class="font-semibold text-emerald-400">1,284</span></div>
+        <button onclick="logout()" class="flex items-center gap-2 hover:text-red-400 transition-colors">
+          <i class="fa-solid fa-power-off"></i> Logout
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== DASHBOARD ==================== -->
+    <div id="dashboard" class="section-active p-8">
+      <div class="grid grid-cols-4 gap-6">
+        <div class="bg-[#1a1a1f] rounded-3xl p-7 card-3d">
+          <p class="text-gray-400">Total Users</p>
+          <p class="text-5xl font-bold mt-4">1,284</p>
+        </div>
+        <div class="bg-[#1a1a1f] rounded-3xl p-7 card-3d">
+          <p class="text-gray-400">Total Earnings</p>
+          <p class="text-5xl font-bold mt-4 text-emerald-400">৩,৪৫,৭৮৯ ৳</p>
+        </div>
+        <div class="bg-[#1a1a1f] rounded-3xl p-7 card-3d">
+          <p class="text-gray-400">Pending Withdraw</p>
+          <p class="text-5xl font-bold mt-4 text-amber-400">23</p>
+        </div>
+        <div class="bg-[#1a1a1f] rounded-3xl p-7 card-3d">
+          <p class="text-gray-400">Today Tasks Completed</p>
+          <p class="text-5xl font-bold mt-4">1,892</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== USERS ==================== -->
+    <div id="users" class="section p-8 hidden">
+      <h3 class="text-2xl font-bold mb-6">Users Management</h3>
+      <div class="flex gap-4 mb-6">
+        <input id="search-input" type="text" placeholder="Search by name or User ID..." 
+               class="flex-1 bg-[#1a1a1f] px-6 py-4 rounded-3xl focus:outline-none" onkeyup="filterUsers()">
+      </div>
+      <div id="users-container" class="space-y-4"></div>
+    </div>
+
+    <!-- ==================== WITHDRAW ==================== -->
+    <div id="withdraw" class="section p-8 hidden">
+      <h3 class="text-2xl font-bold mb-6">Withdraw Requests</h3>
+      <div id="withdraw-container" class="space-y-4"></div>
+    </div>
+
+    <!-- ==================== BROADCAST ==================== -->
+    <div id="broadcast" class="section p-8 hidden">
+      <h3 class="text-2xl font-bold mb-6">Broadcast Message</h3>
+      <div class="bg-[#1a1a1f] rounded-3xl p-8">
+        <textarea id="broadcast-msg" rows="5" class="w-full bg-[#111113] p-6 rounded-3xl focus:outline-none resize-none" 
+                  placeholder="সব ইউজারকে কী মেসেজ পাঠাতে চান?"></textarea>
+        <button onclick="sendBroadcast()" 
+                class="mt-6 bg-emerald-500 hover:bg-emerald-600 px-10 py-4 rounded-3xl font-semibold w-full">Send to All Users</button>
+      </div>
+    </div>
+
+    <!-- ==================== FRAUD LOGS ==================== -->
+    <div id="fraud" class="section p-8 hidden">
+      <h3 class="text-2xl font-bold mb-6">Fraud & Security Logs</h3>
+      <div class="bg-[#1a1a1f] rounded-3xl p-6 space-y-4 text-sm">
+        <div class="flex justify-between border-b border-gray-700 pb-3">
+          <span>Multiple account from same device detected</span>
+          <span class="text-red-400">User ID: BD7843921</span>
+        </div>
+        <div class="flex justify-between border-b border-gray-700 pb-3">
+          <span>VPN / Proxy usage detected</span>
+          <span class="text-amber-400">User ID: BD998877</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tasks & Plans (সংক্ষিপ্ত) -->
+    <div id="tasks" class="section p-8 hidden">
+      <h3 class="text-2xl font-bold mb-6">Tasks Management</h3>
+      <button onclick="addTask()" class="bg-emerald-500 px-8 py-4 rounded-3xl mb-6">+ Add New Task</button>
+    </div>
+
+    <div id="plans" class="section p-8 hidden">
+      <h3 class="text-2xl font-bold mb-6">Plans Management</h3>
+      <button onclick="addPlan()" class="bg-emerald-500 px-8 py-4 rounded-3xl">+ Create New Plan</button>
+    </div>
+  </div>
+</div>
+
+<!-- User Detail Modal -->
+<div id="userModal" class="hidden fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center">
+  <div class="modal bg-[#1a1a1f] w-full max-w-lg mx-4 rounded-3xl p-8">
+    <h3 class="text-xl font-bold mb-6" id="modal-user-name"></h3>
+    <div class="space-y-6">
+      <div>
+        <label class="text-gray-400 block mb-1">bKash Number</label>
+        <input id="modal-bkash" class="w-full bg-[#111113] px-5 py-4 rounded-2xl" />
+      </div>
+      <div>
+        <label class="text-gray-400 block mb-1">Nagad Number</label>
+        <input id="modal-nagad" class="w-full bg-[#111113] px-5 py-4 rounded-2xl" />
+      </div>
+      <div>
+        <label class="text-gray-400 block mb-1">Current Balance</label>
+        <input id="modal-balance" type="number" class="w-full bg-[#111113] px-5 py-4 rounded-2xl" />
+      </div>
+    </div>
+    <div class="flex gap-4 mt-10">
+      <button onclick="saveUserChanges()" class="flex-1 bg-emerald-500 py-4 rounded-3xl font-semibold">Save Changes</button>
+      <button onclick="closeModal()" class="flex-1 bg-gray-700 py-4 rounded-3xl font-semibold">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentUserIndex = -1;
+
+  // Dummy Users
+  let users = [
+    {id:"BD7843921", name:"Rahim Mia", balance:"0", bkash:"01712345678", nagad:""},
+    {id:"BD892341", name:"Karim Khan", balance:"1250", bkash:"01811223344", nagad:"01999887766"}
+  ];
+
+  function showSection(id) {
+    document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
+    document.getElementById('page-title').textContent = 
+      id === 'dashboard' ? 'Dashboard' : 
+      id === 'users' ? 'Users Management' : 
+      id === 'withdraw' ? 'Withdraw Requests' : 
+      id === 'broadcast' ? 'Broadcast Message' : 
+      id === 'fraud' ? 'Fraud Logs' : id.charAt(0).toUpperCase() + id.slice(1);
+  }
+
+  function renderUsers() {
+    const container = document.getElementById('users-container');
+    container.innerHTML = users.map((user, i) => `
+      <div class="bg-[#1a1a1f] rounded-3xl p-6 card-3d flex justify-between items-center">
+        <div>
+          <p class="font-semibold">${user.name}</p>
+          <p class="text-xs text-gray-400">ID: \( {user.id} | Balance: ৳ \){user.balance}</p>
+          <p class="text-xs text-emerald-400">bKash: ${user.bkash || 'Not Set'}</p>
+        </div>
+        <button onclick="openUserModal(${i})" class="bg-emerald-500 px-6 py-3 rounded-2xl text-sm font-medium">Manage</button>
+      </div>
+    `).join('');
+  }
+
+  function openUserModal(index) {
+    currentUserIndex = index;
+    const u = users[index];
+    document.getElementById('modal-user-name').textContent = u.name;
+    document.getElementById('modal-bkash').value = u.bkash || '';
+    document.getElementById('modal-nagad').value = u.nagad || '';
+    document.getElementById('modal-balance').value = u.balance;
+    document.getElementById('userModal').classList.remove('hidden');
+  }
+
+  function saveUserChanges() {
+    if (currentUserIndex === -1) return;
+    const u = users[currentUserIndex];
+    u.bkash = document.getElementById('modal-bkash').value;
+    u.nagad = document.getElementById('modal-nagad').value;
+    u.balance = document.getElementById('modal-balance').value;
+    closeModal();
+    renderUsers();
+    alert('✅ User information updated successfully!');
+  }
+
+  function closeModal() {
+    document.getElementById('userModal').classList.add('hidden');
+  }
+
+  function sendBroadcast() {
+    const msg = document.getElementById('broadcast-msg').value.trim();
+    if (msg) {
+      alert(`✅ Broadcast Message Sent to All Users!\n\nMessage: "${msg}"`);
+      document.getElementById('broadcast-msg').value = '';
+    } else {
+      alert("Please write a message first");
+    }
+  }
+
+  function logout() {
+    if (confirm("Admin Panel থেকে লগআউট করবেন?")) location.reload();
+  }
+
+  function addTask() { alert("New Task creation form would open here"); }
+  function addPlan() { alert("New Plan creation form would open here"); }
+
+  // Initialize
+  window.onload = () => {
+    renderUsers();
+    showSection('dashboard');
+    console.log('%c🚀 EarnBD Admin Panel v2.0 Loaded with Advanced Features!', 'color:#10b981; font-size:15px');
+  };
+</script>
+</body>
+</html>
