@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Movie Lover — Admin Panel</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+:root{--red:#e50000;--red2:#b30000;--gold:#ffc107;--gold2:#e6a800;--bg0:#020202;--bg1:#080808;--bg2:#101010;--bg3:#161616;--bg4:#1c1c1c;--border:#1e1e1e;--t1:#fff;--t2:#aaa;--t3:#555;--green:#16a34a;--blue:#0088cc}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Poppins',sans-serif;background:var(--bg0);color:var(--t1);min-height:100vh}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#222;border-radius:4px}
+/* LOGIN */
+#loginPage{position:fixed;inset:0;background:radial-gradient(ellipse at center,#1a0000,#000);display:flex;align-items:center;justify-content:center;z-index:9999}
+.lb{background:var(--bg2);border:1px solid rgba(229,0,0,.3);border-radius:24px;padding:36px 28px;width:90%;max-width:360px;text-align:center;box-shadow:0 0 60px rgba(229,0,0,.12)}
+.lb-logo{font-size:22px;font-weight:900;letter-spacing:2px;margin-bottom:6px}
+.lb-logo span{color:var(--red)}
+.lb-logo sup{font-size:7px;background:var(--gold);color:#000;padding:1px 5px;border-radius:5px;vertical-align:super;margin-left:2px;font-weight:800}
+.lb-sub{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:2px;margin-bottom:26px}
+.lb-inp{width:100%;padding:13px 16px;border-radius:12px;background:var(--bg1);border:1px solid var(--border);color:#fff;font-size:14px;text-align:center;letter-spacing:4px;outline:none;font-family:'Poppins',sans-serif;margin-bottom:12px;transition:.25s}
+.lb-inp:focus{border-color:var(--red)}
+.lb-btn{width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(90deg,var(--red),var(--red2));color:#fff;font-weight:800;font-size:13px;cursor:pointer;font-family:'Poppins',sans-serif;box-shadow:0 4px 18px rgba(229,0,0,.35)}
+/* LAYOUT */
+#adminPage{display:none}
+.topbar{background:rgba(2,2,2,.95);backdrop-filter:blur(18px);padding:0 18px;height:54px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:500}
+.tbl{font-size:14px;font-weight:900;letter-spacing:1px}
+.tbl span{color:var(--red)}
+.tbl sup{font-size:7px;background:var(--gold);color:#000;padding:1px 5px;border-radius:5px;vertical-align:super;margin-left:2px;font-weight:800}
+.logout{padding:7px 14px;background:rgba(229,0,0,.1);border:1px solid rgba(229,0,0,.25);color:var(--red);border-radius:9px;cursor:pointer;font-size:11px;font-weight:700;font-family:'Poppins',sans-serif}
+/* TABS */
+.navtabs{display:flex;overflow-x:auto;scrollbar-width:none;background:var(--bg1);border-bottom:1px solid var(--border);padding:0 4px}
+.ntab{padding:12px 11px;font-size:10px;font-weight:700;color:var(--t3);white-space:nowrap;cursor:pointer;border-bottom:2px solid transparent;transition:.2s;display:flex;align-items:center;gap:5px;flex-shrink:0;text-transform:uppercase;letter-spacing:.5px}
+.ntab.on{color:var(--red);border-bottom-color:var(--red)}
+.ntab i{font-size:11px}
+/* CONTENT */
+.content{padding:14px;max-width:800px;margin:0 auto}
+.tp{display:none}.tp.on{display:block}
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:14px}
+.ct{font-size:13px;font-weight:800;color:var(--red);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ct i{margin-right:5px}
+/* INPUTS */
+.inp{width:100%;padding:11px 14px;border-radius:11px;background:var(--bg1);border:1px solid var(--border);color:#fff;font-size:12px;outline:none;font-family:'Poppins',sans-serif;margin-bottom:9px;transition:.2s}
+.inp:focus{border-color:var(--red)}
+select.inp option{background:var(--bg1)}
+textarea.inp{resize:vertical;min-height:80px}
+/* IMAGE UPLOAD */
+.img-upload-wrap{position:relative;margin-bottom:9px}
+.img-preview{width:100%;height:80px;border-radius:11px;background:var(--bg3);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;transition:.2s}
+.img-preview:hover{border-color:var(--red)}
+.img-preview img{width:100%;height:100%;object-fit:cover;border-radius:9px;display:none}
+.img-preview .upload-placeholder{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--t3);font-size:11px;font-weight:600}
+.img-preview .upload-placeholder i{font-size:22px;color:var(--red)}
+input[type=file].img-file-inp{display:none}
+.img-url-toggle{font-size:10px;color:var(--t3);cursor:pointer;margin-bottom:9px;text-align:right;text-decoration:underline}
+/* BUTTONS */
+.btn{width:100%;padding:12px 16px;border-radius:11px;border:none;font-weight:800;font-size:11px;cursor:pointer;font-family:'Poppins',sans-serif;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:7px;transition:.2s;margin-top:8px}
+.btn:active{transform:scale(.97);opacity:.88}
+.btn-red{background:linear-gradient(90deg,var(--red),var(--red2));color:#fff}
+.btn-green{background:linear-gradient(90deg,var(--green),#0e7a35);color:#fff}
+.btn-blue{background:linear-gradient(90deg,var(--blue),#005fa0);color:#fff}
+.btn-gold{background:linear-gradient(90deg,var(--gold),var(--gold2));color:#000}
+.btn-gray{background:var(--bg4);color:var(--t2);border:1px solid var(--border)}
+.btn-sm{width:auto;padding:7px 12px;margin-top:0;font-size:9px;border-radius:8px}
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.sc{background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;align-items:center;gap:10px}
+.sc-ic{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.sc-lbl{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;display:block;margin-bottom:3px}
+.sc-val{font-size:20px;font-weight:900;color:#fff;line-height:1}
+/* LIST ITEMS */
+.li{background:var(--bg3);border:1px solid var(--border);border-radius:13px;padding:12px 13px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.thumb{width:58px;height:38px;object-fit:cover;border-radius:7px;flex-shrink:0;border:1px solid var(--border)}
+.ii{flex:1;overflow:hidden}
+.it{font-size:12px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.is{font-size:9px;color:var(--t3);margin-top:2px}
+.act{display:flex;gap:6px;flex-shrink:0}
+.handle{cursor:grab;color:var(--t3);font-size:14px;flex-shrink:0}
+/* USER ROW */
+.ur{background:var(--bg3);border:1px solid var(--border);border-radius:13px;padding:12px 13px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.u-av{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--red2));display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;flex-shrink:0}
+.u-av.gold{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000}
+.u-id{font-size:11px;font-weight:700;color:#fff}
+.u-pts{font-size:10px;color:var(--gold);font-weight:600}
+.u-st{font-size:9px;padding:2px 8px;border-radius:6px;font-weight:700}
+.u-prem{background:rgba(255,193,7,.12);color:var(--gold);border:1px solid rgba(255,193,7,.25)}
+.u-free{background:rgba(255,255,255,.05);color:var(--t3);border:1px solid var(--border)}
+.u-ban{background:rgba(229,0,0,.1);color:var(--red);border:1px solid rgba(229,0,0,.2)}
+/* REQ ROWS */
+.rr{background:var(--bg3);border:1px solid var(--border);border-radius:13px;padding:12px 13px;margin-bottom:8px}
+.rr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.rr-uid{font-size:11px;font-weight:700;color:#fff}
+.rr-body{font-size:10px;color:var(--t2);margin-bottom:8px;line-height:1.6}
+.badge{font-size:8px;padding:2px 9px;border-radius:10px;font-weight:700;letter-spacing:.5px}
+.b-pend{background:rgba(255,193,7,.1);color:var(--gold);border:1px solid rgba(255,193,7,.25)}
+.b-ok{background:rgba(22,163,74,.1);color:#4ade80;border:1px solid rgba(22,163,74,.25)}
+.b-rej{background:rgba(229,0,0,.1);color:var(--red);border:1px solid rgba(229,0,0,.25)}
+/* TOGGLES */
+.tog-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.tog-row:last-child{border:none}
+.tog-lbl{font-size:12px;color:var(--t2)}
+.toggle{position:relative;width:44px;height:24px}
+.toggle input{display:none}
+.tog-track{position:absolute;inset:0;border-radius:12px;background:var(--bg4);cursor:pointer;transition:.3s;border:1px solid var(--border)}
+.toggle input:checked+.tog-track{background:var(--red);border-color:var(--red)}
+.tog-track::after{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:2px;left:2px;transition:.3s;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.toggle input:checked+.tog-track::after{left:22px}
+/* MISC */
+.empty{text-align:center;padding:30px;color:var(--t3);font-size:12px}
+.divider{height:1px;background:var(--border);margin:14px 0}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+.sr{position:relative;margin-bottom:12px}
+.sr i{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--red);font-size:13px}
+.sr .inp{padding-left:38px;margin-bottom:0}
+/* MJ CARD */
+.mjc{background:var(--bg3);border:1px solid var(--border);border-radius:13px;padding:13px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.mj-ic{width:44px;height:44px;border-radius:50%;flex-shrink:0;background:var(--bg4);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:20px}
+.mj-ic img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.mj-nm{font-size:12px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mj-sub{font-size:9px;color:var(--gold);font-weight:600;margin-top:2px}
+.mj-exp{font-size:9px;color:var(--t3);margin-top:1px}
+/* UPLOAD PROGRESS */
+.upload-bar{height:3px;background:var(--bg4);border-radius:3px;margin-top:4px;overflow:hidden}
+.upload-fill{height:100%;background:var(--red);border-radius:3px;width:0;transition:width .3s}
+/* PKG */
+.pkgr{background:var(--bg3);border:1px solid var(--border);border-radius:13px;padding:12px 13px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.pkg-ic{width:36px;height:36px;border-radius:10px;background:rgba(255,193,7,.1);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:16px;flex-shrink:0}
+</style>
+</head>
+<body>
+
+<div id="loginPage">
+  <div class="lb">
+    <div class="lb-logo">MOVIE<span>LOVER</span><sup>ADMIN</sup></div>
+    <div class="lb-sub">Admin Control Panel</div>
+    <input type="password" class="lb-inp" id="pinInp" placeholder="● ● ● ● ● ●" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="lb-btn" onclick="doLogin()"><i class="fa fa-shield-alt"></i>&nbsp; Secure Login</button>
+  </div>
+</div>
+
+<div id="adminPage">
+  <div class="topbar">
+    <div class="tbl">MOVIE<span>LOVER</span><sup>ADMIN</sup></div>
+    <button class="logout" onclick="location.reload()"><i class="fa fa-sign-out-alt"></i> Logout</button>
+  </div>
+
+  <div class="navtabs" id="navTabs">
+    <div class="ntab on"  data-tab="dashboard"><i class="fa fa-tachometer-alt"></i> Dashboard</div>
+    <div class="ntab"     data-tab="videos"><i class="fa fa-film"></i> Videos</div>
+    <div class="ntab"     data-tab="microjobs"><i class="fa fa-bolt"></i> Micro Jobs</div>
+    <div class="ntab"     data-tab="users"><i class="fa fa-users"></i> Users</div>
+    <div class="ntab"     data-tab="subscriptions"><i class="fa fa-crown"></i> Subs</div>
+    <div class="ntab"     data-tab="withdrawals"><i class="fa fa-money-bill"></i> Withdraw</div>
+    <div class="ntab"     data-tab="broadcast"><i class="fa fa-bullhorn"></i> Broadcast</div>
+    <div class="ntab"     data-tab="settings"><i class="fa fa-cog"></i> Settings</div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="tp on" id="tab-dashboard">
+      <div class="stats-grid">
+        <div class="sc"><div class="sc-ic" style="background:rgba(229,0,0,.1);color:var(--red)"><i class="fa fa-users"></i></div><div><span class="sc-lbl">Total Users</span><div class="sc-val" id="s-users">—</div></div></div>
+        <div class="sc"><div class="sc-ic" style="background:rgba(255,193,7,.1);color:var(--gold)"><i class="fa fa-coins"></i></div><div><span class="sc-lbl">Total Points</span><div class="sc-val" id="s-points">—</div></div></div>
+        <div class="sc"><div class="sc-ic" style="background:rgba(22,163,74,.1);color:#4ade80"><i class="fa fa-crown"></i></div><div><span class="sc-lbl">Pending Subs</span><div class="sc-val" id="s-subs">—</div></div></div>
+        <div class="sc"><div class="sc-ic" style="background:rgba(0,136,204,.1);color:#38bdf8"><i class="fa fa-bolt"></i></div><div><span class="sc-lbl">Active Jobs</span><div class="sc-val" id="s-jobs">—</div></div></div>
+      </div>
+      <div class="card">
+        <div class="ct"><span><i class="fa fa-chart-bar"></i> Quick Stats</span></div>
+        <div class="three-col">
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center"><div style="font-size:18px;font-weight:900" id="s-videos">—</div><div style="font-size:9px;color:var(--t3);margin-top:3px;text-transform:uppercase">Videos</div></div>
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center"><div style="font-size:18px;font-weight:900" id="s-cats">—</div><div style="font-size:9px;color:var(--t3);margin-top:3px;text-transform:uppercase">Categories</div></div>
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center"><div style="font-size:18px;font-weight:900;color:var(--gold)" id="s-prem">—</div><div style="font-size:9px;color:var(--t3);margin-top:3px;text-transform:uppercase">Premium</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ct"><span><i class="fa fa-money-bill-wave"></i> Pending Withdrawals</span></div>
+        <div id="dashWdList"><div class="empty">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- VIDEOS -->
+    <div class="tp" id="tab-videos">
+      <div class="card">
+        <div class="ct"><span><i class="fa fa-list"></i> Categories</span><button class="btn btn-gray btn-sm" onclick="saveCatOrder()"><i class="fa fa-save"></i> Save Order</button></div>
+        <input class="inp" id="catInp" placeholder="Category Name">
+        <button class="btn btn-gold" id="catSaveBtn" onclick="doSaveCat()"><i class="fa fa-plus"></i> Add Category</button>
+        <button class="btn btn-gray" id="catCancelBtn" onclick="resetCatForm()" style="display:none"><i class="fa fa-times"></i> Cancel</button>
+        <div id="catList" style="margin-top:12px"></div>
+      </div>
+      <div class="card" id="videoFormCard">
+        <div class="ct" id="vFormTitle"><span><i class="fa fa-upload"></i> Upload Video</span></div>
+        <input class="inp" id="vTitle" placeholder="Video Title *">
+        <input class="inp" id="vLink"  placeholder="Video Link (Google Drive / Direct) *">
+        <input class="inp" id="vThumb" placeholder="Thumbnail URL *">
+        <select class="inp" id="vCat"></select>
+        <button class="btn btn-green" id="vSaveBtn" onclick="doSaveVideo()"><i class="fa fa-cloud-upload-alt"></i> Upload Now</button>
+        <button class="btn btn-gray"  id="vCancelBtn" onclick="resetVForm()" style="display:none"><i class="fa fa-times"></i> Cancel Edit</button>
+      </div>
+      <div class="card">
+        <div class="ct"><span><i class="fa fa-film"></i> Video List</span><button class="btn btn-gray btn-sm" onclick="saveVideoOrder()"><i class="fa fa-save"></i> Save Order</button></div>
+        <div id="videoList"></div>
+      </div>
+    </div>
+
+    <!-- MICRO JOBS -->
+    <div class="tp" id="tab-microjobs">
+      <!-- Global -->
+      <div class="card">
+        <div class="ct"><i class="fa fa-sliders-h"></i> Global Job Settings</div>
+        <div class="two-col">
+          <div><label style="font-size:10px;color:var(--t3);display:block;margin-bottom:5px">Referral Commission %</label><input class="inp" id="refCommInp" type="number" placeholder="e.g. 10" style="margin-bottom:0"></div>
+          <div><label style="font-size:10px;color:var(--t3);display:block;margin-bottom:5px">Default Expiry</label><select class="inp" id="defExpiryInp" style="margin-bottom:0"><option value="midnight">Reset at Midnight</option><option value="12h">Hidden for 12 Hours</option></select></div>
+        </div>
+        <div class="tog-row">
+          <span class="tog-lbl">Leaderboard Visible to Users</span>
+          <label class="toggle"><input type="checkbox" id="lbToggle" checked onchange="saveSetting('leaderboardEnabled',null,this.checked)"><div class="tog-track"></div></label>
+        </div>
+        <button class="btn btn-gold" onclick="saveGlobalJobSettings()"><i class="fa fa-save"></i> Save Global Settings</button>
+      </div>
+
+      <!-- Notice Settings -->
+      <div class="card">
+        <div class="ct"><i class="fa fa-bell"></i> Task Page Notice (Popup)</div>
+        <input class="inp" id="noticeIcon" placeholder="Icon/Emoji (e.g. ⚡🔥)">
+        <input class="inp" id="noticeTitle" placeholder="Notice Title">
+        <textarea class="inp" id="noticeMsg" placeholder="Notice message shown before user enters task page..."></textarea>
+        <button class="btn btn-red" onclick="saveTaskNotice()"><i class="fa fa-save"></i> Save Notice</button>
+      </div>
+
+      <!-- Add/Edit Job Form -->
+      <div class="card" id="jobFormCard">
+        <div class="ct" id="jFormTitle"><span><i class="fa fa-plus-circle"></i> Add New Micro Job</span></div>
+        <input class="inp" id="jName" placeholder="Task Name *">
+        <input class="inp" id="jLink" placeholder="Direct Link (opens when user clicks START) *">
+
+        <!-- Image upload -->
+        <div style="font-size:10px;color:var(--t3);margin-bottom:6px;font-weight:600">Circular Banner Image</div>
+        <div class="img-upload-wrap">
+          <div class="img-preview" id="jIconPreview" onclick="document.getElementById('jIconFile').click()">
+            <img id="jIconImg" src="">
+            <div class="upload-placeholder"><i class="fa fa-image"></i>টাস্ক ব্যানার আপলোড করুন<span style="font-size:9px;color:var(--t3)">Gallery থেকে ছবি বেছে নিন</span></div>
+          </div>
+          <input type="file" id="jIconFile" class="img-file-inp" accept="image/*" onchange="handleIconUpload(this)">
+          <div class="upload-bar"><div class="upload-fill" id="jUploadFill"></div></div>
+        </div>
+        <div class="img-url-toggle" onclick="toggleUrlInput('jIconUrlWrap')">অথবা Image URL পেস্ট করুন</div>
+        <div id="jIconUrlWrap" style="display:none"><input class="inp" id="jIconUrl" placeholder="Image URL"></div>
+
+        <input class="inp" id="jEmoji" placeholder="Fallback Emoji (e.g. 🎯) — used if no image">
+        <input class="inp" id="jDesc" placeholder="Short Description (optional)">
+        <div class="two-col">
+          <div><label style="font-size:10px;color:var(--t3);display:block;margin-bottom:5px">Reward Points</label><input class="inp" id="jReward" type="number" placeholder="e.g. 20" style="margin-bottom:0"></div>
+          <div><label style="font-size:10px;color:var(--t3);display:block;margin-bottom:5px">Expiry Logic</label><select class="inp" id="jExpiry" style="margin-bottom:0"><option value="midnight">Reset at Midnight</option><option value="12h">Hidden for 12 Hours</option></select></div>
+        </div>
+        <div style="margin-top:9px"></div>
+        <button class="btn btn-green" id="jSaveBtn" onclick="doSaveJob()"><i class="fa fa-cloud-upload-alt"></i> Add Job</button>
+        <button class="btn btn-gray"  id="jCancelBtn" onclick="resetJobForm()" style="display:none"><i class="fa fa-times"></i> Cancel</button>
+      </div>
+
+      <!-- Job List -->
+      <div class="card">
+        <div class="ct"><span><i class="fa fa-bolt"></i> Active Micro Jobs</span></div>
+        <div id="jobList"><div class="empty">No jobs yet</div></div>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div class="tp" id="tab-users">
+      <div class="card">
+        <div class="ct"><i class="fa fa-users"></i> User Management</div>
+        <div class="sr"><i class="fa fa-search"></i><input class="inp" id="userSearch" placeholder="Search by User ID..." oninput="renderUsers()"></div>
+        <div id="userList"><div class="empty">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- SUBSCRIPTIONS -->
+    <div class="tp" id="tab-subscriptions">
+      <div class="card">
+        <div class="ct"><i class="fa fa-box"></i> Subscription Packages</div>
+        <div class="two-col"><input class="inp" id="pkgName" placeholder="Package Name"><input class="inp" id="pkgPrice" placeholder="Price (Taka)" type="number"></div>
+        <input class="inp" id="pkgDesc" placeholder="Description (optional)">
+        <button class="btn btn-gold" id="pkgSaveBtn" onclick="doSavePkg()"><i class="fa fa-plus"></i> Add Package</button>
+        <button class="btn btn-gray" id="pkgCancelBtn" onclick="resetPkgForm()" style="display:none"><i class="fa fa-times"></i> Cancel</button>
+        <div id="pkgList" style="margin-top:12px"></div>
+      </div>
+      <div class="card">
+        <div class="ct"><i class="fa fa-clock"></i> Subscription Requests</div>
+        <div id="subReqList"><div class="empty">No requests</div></div>
+      </div>
+    </div>
+
+    <!-- WITHDRAWALS -->
+    <div class="tp" id="tab-withdrawals">
+      <div class="card">
+        <div class="ct"><i class="fa fa-money-bill-wave"></i> All Withdrawal Requests</div>
+        <div class="sr"><i class="fa fa-search"></i><input class="inp" id="wdSearch" placeholder="Filter by user ID or method..." oninput="renderWithdrawals()"></div>
+        <div id="wdList"><div class="empty">No requests</div></div>
+      </div>
+    </div>
+
+    <!-- BROADCAST -->
+    <div class="tp" id="tab-broadcast">
+      <div class="card">
+        <div class="ct"><i class="fa fa-bullhorn"></i> Broadcast Message</div>
+        <textarea class="inp" id="broadcastMsg" placeholder="Write your message...&#10;&#10;Supports HTML formatting."></textarea>
+        <button class="btn btn-blue" onclick="doBroadcast()"><i class="fab fa-telegram"></i> Send via Telegram Bot</button>
+        <div id="broadcastStatus" style="margin-top:10px;font-size:11px;color:var(--t3)"></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="tp" id="tab-settings">
+      <div class="card">
+        <div class="ct"><i class="fab fa-telegram"></i> Telegram Config</div>
+        <input class="inp" id="tgLinkInp" placeholder="Telegram Channel/Group Link">
+        <button class="btn btn-blue" onclick="saveSetting('telegramLink','tgLinkInp')"><i class="fa fa-save"></i> Save Link</button>
+        <div class="divider"></div>
+        <input class="inp" id="botTokenInp" placeholder="Bot Token (for Broadcast)">
+        <button class="btn btn-blue" onclick="saveSetting('botToken','botTokenInp')"><i class="fa fa-save"></i> Save Bot Token</button>
+      </div>
+      <div class="card">
+        <div class="ct"><i class="fa fa-scroll"></i> Scrolling Notice (Home Bar)</div>
+        <input class="inp" id="noticeBarInp" placeholder="Notice text for home screen scrolling bar...">
+        <button class="btn btn-red" onclick="saveSetting('notice','noticeBarInp')"><i class="fa fa-save"></i> Save Notice</button>
+      </div>
+      <div class="card">
+        <div class="ct"><i class="fa fa-ad"></i> Ad Settings</div>
+        <div class="tog-row">
+          <span class="tog-lbl">Auto Ad Modal (every 10 min)</span>
+          <label class="toggle"><input type="checkbox" id="autoAdToggle" checked onchange="saveSetting('autoAdEnabled',null,this.checked)"><div class="tog-track"></div></label>
+        </div>
+        <div class="divider"></div>
+        <input class="inp" id="adLinkInp" placeholder="Direct Ad Link URL">
+        <button class="btn btn-red" onclick="saveSetting('directAdLink','adLinkInp')"><i class="fa fa-save"></i> Save Ad Link</button>
+        <div class="divider"></div>
+        <input class="inp" id="refBonusInp" type="number" placeholder="Referral Bonus Points (default: 10)">
+        <button class="btn btn-gold" onclick="saveSetting('referralBonus','refBonusInp')"><i class="fa fa-save"></i> Save Referral Bonus</button>
+      </div>
+      <div class="card" style="border-color:rgba(229,0,0,.3)">
+        <div class="ct"><i class="fa fa-exclamation-triangle"></i> Danger Zone</div>
+        <button class="btn btn-gray" onclick="loadAllSettings()"><i class="fa fa-sync"></i> Reload Settings from DB</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+firebase.initializeApp({apiKey:"AIzaSyBPEvyz0GVGUGvF2K0H3e2Dx4Qw_WCYjFU",authDomain:"movi-lover-video.firebaseapp.com",projectId:"movi-lover-video",databaseURL:"https://movi-lover-video-default-rtdb.firebaseio.com",storageBucket:"movi-lover-video.appspot.com",appId:"1:1063457095926:web:4695d26c35e8b603326cd7"});
+const db=firebase.database();
+const storage=firebase.storage();
+
+let movies=[],categories=[],users={},packages={},subReqs={},wdReqs={},microJobs={};
+let editVKey=null,editCatIdx=null,editPkgKey=null,editJobKey=null;
+let uploadedIconUrl='';
+const PIN="153781";
+
+function doLogin(){
+  if(document.getElementById('pinInp').value===PIN){
+    document.getElementById('loginPage').style.display='none';
+    document.getElementById('adminPage').style.display='block';
+    initAdmin();
+  } else {
+    document.getElementById('pinInp').style.borderColor='#e50000';
+    setTimeout(()=>document.getElementById('pinInp').style.borderColor='',1200);
+    alert('❌ Wrong PIN');
+  }
+}
+
+function initAdmin(){
+  // Tab navigation
+  document.querySelectorAll('.ntab').forEach(tab=>{
+    tab.addEventListener('click',()=>{
+      document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('on'));
+      document.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
+      tab.classList.add('on');
+      document.getElementById('tab-'+tab.dataset.tab).classList.add('on');
+      renderTab(tab.dataset.tab);
+    });
+  });
+
+  db.ref('/').on('value',snap=>{
+    const d=snap.val()||{};
+    const vm=d.movies||{};
+    movies=Object.keys(vm).map(k=>({...vm[k],key:k}));
+    if(d.movieOrder)movies.sort((a,b)=>d.movieOrder.indexOf(a.key)-d.movieOrder.indexOf(b.key));
+    else movies.reverse();
+    categories=d.categories||[];
+    users=d.users||{};
+    packages=d.packages||{};
+    subReqs=d.subRequests||{};
+    wdReqs=d.withdrawals||{};
+    microJobs=d.microJobs||{};
+    updateStats();
+    const active=document.querySelector('.tp.on')?.id?.replace('tab-','');
+    if(active)renderTab(active);
+  });
+  loadAllSettings();
+}
+
+function renderTab(name){
+  if(name==='dashboard')    {updateStats();renderDashWd();}
+  if(name==='videos')       {renderCats();renderVideoList();}
+  if(name==='microjobs')    {renderJobList();}
+  if(name==='users')        {renderUsers();}
+  if(name==='subscriptions'){renderPkgs();renderSubReqs();}
+  if(name==='withdrawals')  {renderWithdrawals();}
+}
+
+/* STATS */
+function updateStats(){
+  const arr=Object.values(users);
+  document.getElementById('s-users').innerText=arr.length;
+  document.getElementById('s-points').innerText=arr.reduce((s,u)=>s+(u.points||0),0);
+  document.getElementById('s-subs').innerText=Object.values(subReqs).filter(r=>r.status==='pending').length;
+  document.getElementById('s-jobs').innerText=Object.keys(microJobs).length;
+  document.getElementById('s-videos').innerText=movies.length;
+  document.getElementById('s-cats').innerText=categories.length;
+  document.getElementById('s-prem').innerText=arr.filter(u=>u.premiumStatus==='active').length;
+}
+
+/* DASHBOARD WD */
+function renderDashWd(){
+  const list=document.getElementById('dashWdList');
+  const arr=Object.entries(wdReqs).filter(([,r])=>r.status==='pending').sort((a,b)=>(b[1].ts||0)-(a[1].ts||0)).slice(0,5);
+  if(!arr.length){list.innerHTML='<div class="empty">No pending withdrawals</div>';return;}
+  list.innerHTML=arr.map(([key,r])=>`
+    <div class="rr">
+      <div class="rr-top"><span class="rr-uid">${r.userId}</span><span class="badge b-pend">Pending</span></div>
+      <div class="rr-body">💳 ${r.method?.toUpperCase()||'—'} | 📱 ${r.number||'—'} | 💰 ${r.points||0} pts → ${r.taka||0} Taka${r.bankName?`<br>🏦 ${r.bankName} | 👤 ${r.accHolder||'—'}`:''}
+      </div>
+      <div class="act">
+        <button class="btn btn-green btn-sm" onclick="approveWd('${key}')"><i class="fa fa-check"></i> Mark Paid</button>
+        <button class="btn btn-red  btn-sm" onclick="rejectWd('${key}','${r.userId}',${r.points||0})"><i class="fa fa-times"></i> Reject</button>
+      </div>
+    </div>`).join('');
+}
+
+/* CATEGORIES */
+function renderCats(){
+  const el=document.getElementById('catList');
+  el.innerHTML=categories.map((c,i)=>`
+    <div class="li" data-name="${c}">
+      <i class="fas fa-bars handle"></i>
+      <div class="ii"><div class="it">${c}</div></div>
+      <div class="act">
+        <button class="btn btn-blue btn-sm" onclick="editCat(${i})"><i class="fa fa-edit"></i></button>
+        <button class="btn btn-red  btn-sm" onclick="deleteCat(${i})"><i class="fa fa-trash"></i></button>
+      </div>
+    </div>`).join('');
+  new Sortable(el,{animation:150,handle:'.handle'});
+  document.getElementById('vCat').innerHTML=categories.map(c=>`<option value="${c}">${c}</option>`).join('');
+}
+function doSaveCat(){
+  const name=document.getElementById('catInp').value.trim();if(!name)return;
+  if(editCatIdx!==null){categories[editCatIdx]=name;editCatIdx=null;}else categories.push(name);
+  db.ref('categories').set(categories).then(resetCatForm);
+}
+function editCat(i){editCatIdx=i;document.getElementById('catInp').value=categories[i];document.getElementById('catSaveBtn').innerHTML='<i class="fa fa-save"></i> Update';document.getElementById('catSaveBtn').className='btn btn-blue';document.getElementById('catCancelBtn').style.display='flex';}
+function resetCatForm(){editCatIdx=null;document.getElementById('catInp').value='';document.getElementById('catSaveBtn').innerHTML='<i class="fa fa-plus"></i> Add Category';document.getElementById('catSaveBtn').className='btn btn-gold';document.getElementById('catCancelBtn').style.display='none';}
+function deleteCat(i){if(!confirm(`Delete "${categories[i]}"?`))return;categories.splice(i,1);db.ref('categories').set(categories);}
+function saveCatOrder(){const o=Array.from(document.querySelectorAll('#catList .li')).map(el=>el.getAttribute('data-name'));db.ref('categories').set(o).then(()=>toast('Order saved!'));}
+
+/* VIDEOS */
+function renderVideoList(){
+  const list=document.getElementById('videoList');
+  if(!movies.length){list.innerHTML='<div class="empty">No videos yet</div>';return;}
+  list.innerHTML=movies.map(m=>`
+    <div class="li" data-id="${m.key}">
+      <i class="fas fa-bars handle"></i>
+      <img class="thumb" src="${m.thumb}" onerror="this.src='https://via.placeholder.com/58x38/111/333?text=IMG'">
+      <div class="ii"><div class="it">${m.title}</div><div class="is">${m.category||'—'}</div></div>
+      <div class="act">
+        <button class="btn btn-blue btn-sm" onclick="editVideo('${m.key}')"><i class="fa fa-edit"></i></button>
+        <button class="btn btn-red  btn-sm" onclick="deleteVideo('${m.key}')"><i class="fa fa-trash"></i></button>
+      </div>
+    </div>`).join('');
+  new Sortable(list,{animation:150,handle:'.handle'});
+}
+function doSaveVideo(){
+  const v={title:document.getElementById('vTitle').value.trim(),link:document.getElementById('vLink').value.trim(),thumb:document.getElementById('vThumb').value.trim(),category:document.getElementById('vCat').value};
+  if(!v.title||!v.link){alert('Title and Link required!');return;}
+  if(editVKey)db.ref('movies/'+editVKey).update(v).then(resetVForm);
+  else db.ref('movies').push(v).then(resetVForm);
+}
+function editVideo(key){const m=movies.find(x=>x.key===key);if(!m)return;editVKey=key;document.getElementById('vTitle').value=m.title;document.getElementById('vLink').value=m.link;document.getElementById('vThumb').value=m.thumb;document.getElementById('vCat').value=m.category;document.getElementById('vFormTitle').innerHTML=`<span><i class="fa fa-edit"></i> Editing: ${m.title.substring(0,28)}...</span>`;document.getElementById('vSaveBtn').innerHTML='<i class="fa fa-save"></i> Update Now';document.getElementById('vSaveBtn').className='btn btn-blue';document.getElementById('vCancelBtn').style.display='flex';document.getElementById('videoFormCard').scrollIntoView({behavior:'smooth'});}
+function resetVForm(){editVKey=null;['vTitle','vLink','vThumb'].forEach(id=>document.getElementById(id).value='');document.getElementById('vFormTitle').innerHTML='<span><i class="fa fa-upload"></i> Upload Video</span>';document.getElementById('vSaveBtn').innerHTML='<i class="fa fa-cloud-upload-alt"></i> Upload Now';document.getElementById('vSaveBtn').className='btn btn-green';document.getElementById('vCancelBtn').style.display='none';}
+function deleteVideo(key){if(!confirm('Delete?'))return;db.ref('movies/'+key).remove();}
+function saveVideoOrder(){const o=Array.from(document.querySelectorAll('#videoList .li')).map(el=>el.getAttribute('data-id'));db.ref('movieOrder').set(o).then(()=>toast('Video order saved!'));}
+
+/* IMAGE UPLOAD */
+function handleIconUpload(input){
+  const file=input.files[0];if(!file)return;
+  const pr=document.getElementById('jIconPreview');
+  const fill=document.getElementById('jUploadFill');
+  const ref=storage.ref('jobIcons/'+Date.now()+'_'+file.name);
+  const task=ref.put(file);
+  task.on('state_changed',
+    snap=>{const p=(snap.bytesTransferred/snap.totalBytes)*100;fill.style.width=p+'%';},
+    err=>{alert('Upload failed: '+err.message);},
+    ()=>{
+      task.snapshot.ref.getDownloadURL().then(url=>{
+        uploadedIconUrl=url;
+        const img=document.getElementById('jIconImg');
+        img.src=url;img.style.display='block';
+        pr.querySelector('.upload-placeholder').style.display='none';
+        fill.style.width='100%';
+        setTimeout(()=>fill.style.width='0',1500);
+        toast('✅ Image uploaded!');
+      });
+    }
+  );
+}
+function toggleUrlInput(id){document.getElementById(id).style.display=document.getElementById(id).style.display==='none'?'':'none';}
+
+/* MICRO JOBS */
+function renderJobList(){
+  const list=document.getElementById('jobList');
+  const arr=Object.entries(microJobs);
+  if(!arr.length){list.innerHTML='<div class="empty">No jobs yet. Add your first micro job above.</div>';return;}
+  list.innerHTML=arr.map(([key,j])=>{
+    const iconH=j.icon?`<div class="mj-ic"><img src="${j.icon}" alt=""></div>`:`<div class="mj-ic">${j.emoji||'🎯'}</div>`;
+    return `<div class="mjc">${iconH}<div class="ii"><div class="mj-nm">${j.name}</div><div class="mj-sub">+${j.reward||0} Points</div><div class="mj-exp">Expiry: ${j.expiry==='12h'?'12h cooldown':'Resets at midnight'}</div></div><div class="act"><button class="btn btn-blue btn-sm" onclick="editJob('${key}')"><i class="fa fa-edit"></i></button><button class="btn btn-red btn-sm" onclick="deleteJob('${key}')"><i class="fa fa-trash"></i></button></div></div>`;
+  }).join('');
+}
+
+function doSaveJob(){
+  let iconUrl=uploadedIconUrl||document.getElementById('jIconUrl').value.trim()||'';
+  const job={
+    name:document.getElementById('jName').value.trim(),
+    link:document.getElementById('jLink').value.trim(),
+    icon:iconUrl,
+    emoji:document.getElementById('jEmoji').value.trim()||'🎯',
+    desc:document.getElementById('jDesc').value.trim(),
+    reward:+document.getElementById('jReward').value||0,
+    expiry:document.getElementById('jExpiry').value,
+  };
+  if(!job.name||!job.link){alert('Task Name and Link are required!');return;}
+  if(editJobKey)db.ref('microJobs/'+editJobKey).update(job).then(resetJobForm);
+  else db.ref('microJobs').push(job).then(resetJobForm);
+}
+
+function editJob(key){
+  editJobKey=key;const j=microJobs[key];
+  document.getElementById('jName').value=j.name||'';
+  document.getElementById('jLink').value=j.link||'';
+  document.getElementById('jIconUrl').value=j.icon||'';
+  if(j.icon){document.getElementById('jIconUrlWrap').style.display='';document.getElementById('jIconImg').src=j.icon;document.getElementById('jIconImg').style.display='block';document.getElementById('jIconPreview').querySelector('.upload-placeholder').style.display='none';}
+  document.getElementById('jEmoji').value=j.emoji||'';
+  document.getElementById('jDesc').value=j.desc||'';
+  document.getElementById('jReward').value=j.reward||'';
+  document.getElementById('jExpiry').value=j.expiry||'midnight';
+  document.getElementById('jFormTitle').innerHTML=`<span><i class="fa fa-edit"></i> Editing: ${j.name}</span>`;
+  document.getElementById('jSaveBtn').innerHTML='<i class="fa fa-save"></i> Update Job';
+  document.getElementById('jSaveBtn').className='btn btn-blue';
+  document.getElementById('jCancelBtn').style.display='flex';
+  document.getElementById('jobFormCard').scrollIntoView({behavior:'smooth'});
+}
+function resetJobForm(){
+  editJobKey=null;uploadedIconUrl='';
+  ['jName','jLink','jIconUrl','jEmoji','jDesc','jReward'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('jExpiry').value='midnight';
+  document.getElementById('jIconImg').src='';document.getElementById('jIconImg').style.display='none';
+  document.getElementById('jIconPreview').querySelector('.upload-placeholder').style.display='flex';
+  document.getElementById('jFormTitle').innerHTML='<span><i class="fa fa-plus-circle"></i> Add New Micro Job</span>';
+  document.getElementById('jSaveBtn').innerHTML='<i class="fa fa-cloud-upload-alt"></i> Add Job';
+  document.getElementById('jSaveBtn').className='btn btn-green';
+  document.getElementById('jCancelBtn').style.display='none';
+}
+function deleteJob(key){if(!confirm('Delete this job?'))return;db.ref('microJobs/'+key).remove();}
+
+function saveGlobalJobSettings(){
+  db.ref('refCommission').set(+document.getElementById('refCommInp').value||10);
+  db.ref('defaultExpiry').set(document.getElementById('defExpiryInp').value);
+  toast('Global settings saved!');
+}
+
+function saveTaskNotice(){
+  db.ref('taskNotice').set({icon:document.getElementById('noticeIcon').value.trim()||'⚡',title:document.getElementById('noticeTitle').value.trim(),msg:document.getElementById('noticeMsg').value.trim()}).then(()=>toast('Notice saved!'));
+}
+
+/* USERS */
+function renderUsers(){
+  const q=(document.getElementById('userSearch')?.value||'').toLowerCase();
+  const list=document.getElementById('userList');
+  const arr=Object.entries(users).filter(([id])=>id.toLowerCase().includes(q)).sort((a,b)=>(b[1].points||0)-(a[1].points||0));
+  if(!arr.length){list.innerHTML='<div class="empty">No users found</div>';return;}
+  list.innerHTML=arr.map(([uid,u])=>{
+    const prem=u.premiumStatus==='active',banned=u.banned===true;
+    const sc=banned?'u-ban':prem?'u-prem':'u-free';
+    const st=banned?'Banned':prem?'Premium':'Free';
+    return `<div class="ur"><div class="u-av ${prem?'gold':''}"><i class="fa fa-user"></i></div><div style="flex:1;overflow:hidden"><div class="u-id">${uid}</div><div class="u-pts"><i class="fa fa-coins"></i> ${u.points||0} pts</div></div><span class="u-st ${sc}">${st}</span><div class="act" style="margin-left:6px"><button class="btn btn-gold btn-sm" onclick="editPts('${uid}',${u.points||0})"><i class="fa fa-edit"></i></button><button class="btn btn-${banned?'green':'red'} btn-sm" onclick="toggleBan('${uid}',${banned})"><i class="fa fa-${banned?'unlock':'ban'}"></i></button><button class="btn btn-blue btn-sm" onclick="togglePrem('${uid}','${u.premiumStatus||'none'}')"><i class="fa fa-crown"></i></button></div></div>`;
+  }).join('');
+}
+function editPts(uid,cur){const p=prompt(`Edit points for ${uid}\nCurrent: ${cur}`,cur);if(p===null||isNaN(+p))return;db.ref('users/'+uid+'/points').set(+p).then(()=>toast('Points updated!'));}
+function toggleBan(uid,b){if(!confirm(`${b?'Unban':'Ban'} user ${uid}?`))return;db.ref('users/'+uid+'/banned').set(!b).then(()=>toast('Updated!'));}
+function togglePrem(uid,s){const n=s==='active'?'none':'active';if(!confirm(`Set ${uid} premium to "${n}"?`))return;db.ref('users/'+uid+'/premiumStatus').set(n).then(()=>toast('Updated!'));}
+
+/* PACKAGES */
+function renderPkgs(){
+  const list=document.getElementById('pkgList');
+  const arr=Object.entries(packages);
+  if(!arr.length){list.innerHTML='<div class="empty">No packages yet</div>';return;}
+  list.innerHTML=arr.map(([key,p])=>`<div class="pkgr"><div class="pkg-ic"><i class="fa fa-crown"></i></div><div style="flex:1"><div class="it">${p.name}</div><div class="is">${p.price} Taka ${p.desc?'— '+p.desc:''}</div></div><div class="act"><button class="btn btn-blue btn-sm" onclick="editPkg('${key}')"><i class="fa fa-edit"></i></button><button class="btn btn-red btn-sm" onclick="deletePkg('${key}')"><i class="fa fa-trash"></i></button></div></div>`).join('');
+}
+function doSavePkg(){const pkg={name:document.getElementById('pkgName').value.trim(),price:+document.getElementById('pkgPrice').value,desc:document.getElementById('pkgDesc').value.trim()};if(!pkg.name||!pkg.price){alert('Name and price required!');return;}if(editPkgKey)db.ref('packages/'+editPkgKey).update(pkg).then(resetPkgForm);else db.ref('packages').push(pkg).then(resetPkgForm);}
+function editPkg(key){editPkgKey=key;const p=packages[key];document.getElementById('pkgName').value=p.name;document.getElementById('pkgPrice').value=p.price;document.getElementById('pkgDesc').value=p.desc||'';document.getElementById('pkgSaveBtn').innerHTML='<i class="fa fa-save"></i> Update Package';document.getElementById('pkgSaveBtn').className='btn btn-blue';document.getElementById('pkgCancelBtn').style.display='flex';}
+function resetPkgForm(){let editPkgKey=null;['pkgName','pkgPrice','pkgDesc'].forEach(id=>document.getElementById(id).value='');document.getElementById('pkgSaveBtn').innerHTML='<i class="fa fa-plus"></i> Add Package';document.getElementById('pkgSaveBtn').className='btn btn-gold';document.getElementById('pkgCancelBtn').style.display='none';}
+function deletePkg(key){if(!confirm('Delete?'))return;db.ref('packages/'+key).remove();}
+
+/* SUB REQUESTS */
+function renderSubReqs(){
+  const list=document.getElementById('subReqList');
+  const arr=Object.entries(subReqs).sort((a,b)=>(b[1].ts||0)-(a[1].ts||0));
+  if(!arr.length){list.innerHTML='<div class="empty">No subscription requests</div>';return;}
+  list.innerHTML=arr.map(([key,r])=>{
+    const bc=r.status==='approved'?'b-ok':r.status==='rejected'?'b-rej':'b-pend';
+    const bt=r.status==='approved'?'Approved':r.status==='rejected'?'Rejected':'Pending';
+    return `<div class="rr"><div class="rr-top"><span class="rr-uid">${r.userId}</span><span class="badge ${bc}">${bt}</span></div><div class="rr-body">📦 ${r.package||'—'} | 💳 ${r.txnId||'—'} | 💰 ${r.amount||'—'} Taka</div>${r.status==='pending'?`<div class="act"><button class="btn btn-green btn-sm" onclick="approveSubReq('${key}','${r.userId}')"><i class="fa fa-check"></i> Approve</button><button class="btn btn-red btn-sm" onclick="rejectSubReq('${key}')"><i class="fa fa-times"></i> Reject</button></div>`:''}`;
+  }).join('');
+}
+function approveSubReq(key,uid){if(!confirm(`Approve for ${uid}?`))return;db.ref('subRequests/'+key+'/status').set('approved');db.ref('users/'+uid+'/premiumStatus').set('active');toast('✅ Approved!');}
+function rejectSubReq(key){if(!confirm('Reject?'))return;db.ref('subRequests/'+key+'/status').set('rejected');toast('Rejected.');}
+
+/* WITHDRAWALS */
+function renderWithdrawals(){
+  const q=(document.getElementById('wdSearch')?.value||'').toLowerCase();
+  const list=document.getElementById('wdList');
+  const arr=Object.entries(wdReqs).filter(([,r])=>!q||(r.userId||'').toLowerCase().includes(q)||(r.method||'').toLowerCase().includes(q)).sort((a,b)=>(b[1].ts||0)-(a[1].ts||0));
+  if(!arr.length){list.innerHTML='<div class="empty">No withdrawal requests</div>';return;}
+  list.innerHTML=arr.map(([key,r])=>{
+    const bc=r.status==='paid'?'b-ok':r.status==='rejected'?'b-rej':'b-pend';
+    const bt=r.status==='paid'?'Paid':r.status==='rejected'?'Rejected':'Pending';
+    const bankInfo=r.bankName?`<br>🏦 Bank: <b>${r.bankName}</b> | 👤 ${r.accHolder||'—'}`:'';
+    return `<div class="rr"><div class="rr-top"><span class="rr-uid">${r.userId}</span><span class="badge ${bc}">${bt}</span></div><div class="rr-body">💳 Method: <b>${r.method?.toUpperCase()||'—'}</b><br>📱 Number: <b>${r.number||'—'}</b>${bankInfo}<br>💰 Amount: <b>${r.points||0} pts → ${r.taka||0} Taka</b></div>${r.status==='pending'?`<div class="act"><button class="btn btn-green btn-sm" onclick="approveWd('${key}')"><i class="fa fa-check"></i> Mark Paid</button><button class="btn btn-red btn-sm" onclick="rejectWd('${key}','${r.userId}',${r.points||0})"><i class="fa fa-times"></i> Reject</button></div>`:''}`;
+  }).join('');
+}
+function approveWd(key){if(!confirm('Mark as paid?'))return;db.ref('withdrawals/'+key+'/status').set('paid');toast('✅ Marked as paid!');}
+function rejectWd(key,uid,pts){if(!confirm('Reject and refund?'))return;db.ref('withdrawals/'+key+'/status').set('rejected');db.ref('users/'+uid+'/points').transaction(p=>(p||0)+pts);toast('Rejected. Points refunded.');}
+
+/* BROADCAST */
+async function doBroadcast(){
+  const msg=document.getElementById('broadcastMsg').value.trim();
+  if(!msg){alert('Write a message first!');return;}
+  const el=document.getElementById('broadcastStatus');el.innerText='Fetching bot token...';
+  const snap=await db.ref('botToken').get();
+  const token=snap.val();
+  if(!token){el.innerText='❌ Bot token not saved. Go Settings.';return;}
+  const ids=Object.keys(users);if(!ids.length){el.innerText='No users found.';return;}
+  el.innerText=`Sending to ${ids.length} users...`;
+  let ok=0,fail=0;
+  for(const uid of ids){
+    try{const r=await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:uid,text:msg,parse_mode:'HTML'})});const d=await r.json();if(d.ok)ok++;else fail++;}catch{fail++;}
+    await new Promise(r=>setTimeout(r,60));
+  }
+  el.innerText=`✅ Sent: ${ok} | ❌ Failed: ${fail}`;
+}
+
+/* SETTINGS */
+function saveSetting(path,inputId,boolVal){
+  const val=inputId?document.getElementById(inputId).value.trim():boolVal;
+  db.ref(path).set(val).then(()=>toast('Saved!'));
+}
+
+function loadAllSettings(){
+  db.ref('/').once('value',snap=>{
+    const d=snap.val()||{};
+    setv('tgLinkInp',d.telegramLink||'');
+    setv('noticeBarInp',d.notice||'');
+    setv('adLinkInp',d.directAdLink||'');
+    setv('refBonusInp',d.referralBonus||10);
+    setv('refCommInp',d.refCommission||10);
+    if(d.defaultExpiry)document.getElementById('defExpiryInp').value=d.defaultExpiry;
+    document.getElementById('autoAdToggle').checked=d.autoAdEnabled!==false;
+    document.getElementById('lbToggle').checked=d.leaderboardEnabled!==false;
+    if(d.taskNotice){setv('noticeIcon',d.taskNotice.icon||'');setv('noticeTitle',d.taskNotice.title||'');setv('noticeMsg',d.taskNotice.msg||'');}
+  });
+}
+function setv(id,val){const el=document.getElementById(id);if(el)el.value=val;}
+
+/* TOAST */
+let _tt;
+function toast(msg){
+  clearTimeout(_tt);
+  let t=document.getElementById('toastEl');
+  if(!t){t=document.createElement('div');t.id='toastEl';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(20,20,20,.95);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);color:#fff;padding:9px 22px;border-radius:24px;font-size:12px;font-weight:600;z-index:9999;white-space:nowrap;font-family:Poppins,sans-serif;box-shadow:0 4px 20px rgba(0,0,0,.4);pointer-events:none;transition:opacity .3s';document.body.appendChild(t);}
+  t.innerText=msg;t.style.opacity='1';
+  _tt=setTimeout(()=>t.style.opacity='0',2500);
+}
+
+document.getElementById('pinInp').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+</script>
+</body>
+</html>
