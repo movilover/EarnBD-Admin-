@@ -297,6 +297,8 @@ input[type=file].img-file-inp{display:none}
 .upload-progress-bar-bg{width:100%;height:8px;background:var(--bg1);border-radius:6px;overflow:hidden;border:1px solid var(--border)}
 .upload-progress-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--red),var(--gold));border-radius:6px;transition:width .2s}
 .upload-progress-txt{font-size:9px;color:var(--t2);margin-top:5px;display:flex;justify-content:space-between}
+.part-hint{font-size:9px;color:var(--t3);margin-top:6px}.part-hint i{color:var(--gold);margin-right:3px}
+.part-cancel{margin-top:7px;background:rgba(229,0,0,.15);border:1px solid rgba(229,0,0,.3);color:var(--red);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:10px;font-family:'Poppins',sans-serif}
 .verified-badge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:var(--verified);border-radius:50%;color:#fff;font-size:9px;margin-left:4px;flex-shrink:0}
 .toggle-verify{position:relative;width:44px;height:24px}.toggle-verify input{display:none}
 .tog-verify-track{position:absolute;inset:0;border-radius:12px;background:var(--bg4);cursor:pointer;transition:.3s;border:1px solid var(--border)}
@@ -1610,7 +1612,11 @@ async function handleThumbFileSelect(e){
 
 // ─── MULTI-PART VIDEO SYSTEM ───────────────────────────────────
 function addVideoPart(){videoParts.push({label:'Part '+(videoParts.length+1),link:'',uploading:false});renderVideoParts();}
-function removeVideoPart(i){videoParts.splice(i,1);renderVideoParts();}
+function removeVideoPart(i){
+  const p=videoParts[i];
+  if(p&&p.job)cancelPartJob(i);
+  videoParts.splice(i,1);renderVideoParts();
+}
 function renderVideoParts(){
   const wrap=document.getElementById('videoPartsContainer');
   if(!videoParts.length){wrap.innerHTML='<div class="empty" style="padding:16px">এখনো কোনো Part যোগ করা হয়নি।</div>';return;}
@@ -1623,27 +1629,257 @@ function renderVideoParts(){
       </div>
       <input class="part-link-inp" id="partLink${i}" placeholder="ভিডিও লিংক (অটো বসবে)" value="${esc(p.link||'')}" oninput="videoParts[${i}].link=this.value">
       <button class="btn btn-blue btn-sm" style="width:100%" onclick="document.getElementById('partFile${i}').click()"><i class="fa fa-video"></i> গ্যালারি থেকে Part ${i+1} ভিডিও আপলোড</button>
+      <div class="part-hint"><i class="fa fa-compress-alt"></i> Videos over 95 MB are compressed automatically in your browser before upload.</div>
       <input type="file" id="partFile${i}" class="file-hidden" accept="video/*" onchange="handlePartFileSelect(event,${i})">
       <div class="upload-progress-wrap" id="partProgressWrap${i}">
         <div class="upload-progress-bar-bg"><div class="upload-progress-bar-fill" id="partProgressFill${i}"></div></div>
         <div class="upload-progress-txt"><span id="partProgressTxt${i}">আপলোড হচ্ছে...</span><span id="partProgressPct${i}">0%</span></div>
+        <button class="part-cancel" id="partCancel${i}" style="display:none" onclick="cancelPartJob(${i})"><i class="fa fa-ban"></i> Cancel compression</button>
       </div>
     </div>`).join('')}</div>`;
+  // re-apply any in-flight progress state (the list is re-rendered when parts are added/removed)
+  videoParts.forEach(p=>{if(p.ui)setPartUI(p,{});});
 }
-async function handlePartFileSelect(e,i){
-  const file=e.target.files[0];if(!file)return;
-  if(!isCldReady()){toast('❌ প্রথমে Cloudinary সেটআপ করুন!');switchTab('cloudinary');return;}
-  const wrap=document.getElementById('partProgressWrap'+i),fill=document.getElementById('partProgressFill'+i),txt=document.getElementById('partProgressTxt'+i),pct=document.getElementById('partProgressPct'+i);
-  wrap.classList.add('show');videoParts[i].uploading=true;
-  txt.innerText='ভিডিও আপলোড হচ্ছে... ('+fmtBytes(file.size)+')';fill.style.width='0%';pct.innerText='0%';
+
+// Progress state lives on the part object, so it survives re-renders and index shifts.
+function setPartUI(part,ui){
+  part.ui=Object.assign(part.ui||{},ui);
+  const i=videoParts.indexOf(part);if(i<0)return;
+  const wrap=document.getElementById('partProgressWrap'+i);if(!wrap)return;
+  const fill=document.getElementById('partProgressFill'+i),txt=document.getElementById('partProgressTxt'+i),
+        pct=document.getElementById('partProgressPct'+i),cancel=document.getElementById('partCancel'+i);
+  wrap.classList.toggle('show',!!part.ui.show);
+  fill.style.width=(part.ui.pct||0)+'%';
+  txt.innerText=part.ui.txt||'';
+  pct.innerText=part.ui.right||'';
+  if(cancel)cancel.style.display=part.ui.canCancel?'inline-block':'none';
+}
+
+// ─── VIDEO AUTO-COMPRESSION (FFmpeg.wasm — runs 100% in the browser) ───
+const VIDEO_DIRECT_LIMIT=95*1024*1024;   // <= 95 MB  → upload as-is
+const VIDEO_TARGET_BYTES=84*1024*1024;   // > 95 MB   → compress aiming for ~84 MB (headroom under the limit)
+const FFMPEG_VERSION='0.12.10',FFMPEG_UTIL_VERSION='0.12.1',FFMPEG_CORE_VERSION='0.12.6';
+const FFMPEG_CDN_ROOTS=['https://cdn.jsdelivr.net/npm','https://unpkg.com'];   // tried in order
+const FFMPEG_CORE_WASM_APPROX_BYTES=32*1000*1000;                              // only used for the download % display
+const FFMPEG_PRESET='ultrafast';   // ultrafast | superfast | veryfast — slower presets look better but are MUCH slower in a browser
+
+let _ffmpeg=null,_ffAssets=null,_compressBusy=false;
+const _scriptCache={};
+
+function loadScriptOnce(src){
+  return _scriptCache[src]||(_scriptCache[src]=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');s.src=src;s.onload=()=>resolve();
+    s.onerror=()=>{delete _scriptCache[src];reject(new Error('Failed to load '+src));};
+    document.head.appendChild(s);
+  }));
+}
+function withTimeout(promise,ms,msg){
+  let t;return Promise.race([promise,new Promise((_,rej)=>{t=setTimeout(()=>rej(new Error(msg||'Timed out')),ms);})]).finally(()=>clearTimeout(t));
+}
+// Downloads a file and returns a same-origin blob: URL (needed so the FFmpeg worker/core can load from a CDN).
+async function fetchAsBlobURL(url,mime,expectedBytes,onPct){
+  const r=await fetch(url);if(!r.ok)throw new Error('HTTP '+r.status+' for '+url);
+  const total=expectedBytes||0;
+  if(!r.body||!onPct||!total){const b=await r.blob();return URL.createObjectURL(new Blob([b],{type:mime}));}
+  const reader=r.body.getReader(),chunks=[];let got=0;
+  for(;;){const {done,value}=await reader.read();if(done)break;chunks.push(value);got+=value.length;onPct(Math.min(99,got/total*100));}
+  return URL.createObjectURL(new Blob(chunks,{type:mime}));
+}
+// Loads @ffmpeg/ffmpeg (single-thread core → works on GitHub Pages, no COOP/COEP headers or SharedArrayBuffer needed)
+async function getFFmpeg(onLoadPct){
+  if(_ffmpeg&&_ffmpeg.loaded)return _ffmpeg;
+  let lastErr=null;
+  for(const root of FFMPEG_CDN_ROOTS){
+    try{
+      const ffBase=`${root}/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/umd`;
+      const utilJs=`${root}/@ffmpeg/util@${FFMPEG_UTIL_VERSION}/dist/umd/index.js`;
+      const coreBase=`${root}/@ffmpeg/core@${FFMPEG_CORE_VERSION}/dist/umd`;
+      await loadScriptOnce(`${ffBase}/ffmpeg.js`);
+      await loadScriptOnce(utilJs);
+      if(!window.FFmpegWASM||!window.FFmpegUtil)throw new Error('FFmpeg scripts did not initialise');
+      if(!_ffAssets||_ffAssets.root!==root){
+        let classWorkerURL;
+        try{classWorkerURL=await fetchAsBlobURL(`${ffBase}/814.ffmpeg.js`,'text/javascript');}
+        catch(e){console.warn('FFmpeg worker chunk not found, will use the default worker',e);}
+        const coreURL=await fetchAsBlobURL(`${coreBase}/ffmpeg-core.js`,'text/javascript');
+        const wasmURL=await fetchAsBlobURL(`${coreBase}/ffmpeg-core.wasm`,'application/wasm',FFMPEG_CORE_WASM_APPROX_BYTES,onLoadPct);
+        _ffAssets={root,classWorkerURL,coreURL,wasmURL};
+      }
+      let ff=null;
+      for(const useBlobWorker of(_ffAssets.classWorkerURL?[true,false]:[false])){
+        const cand=new window.FFmpegWASM.FFmpeg();
+        const cfg={coreURL:_ffAssets.coreURL,wasmURL:_ffAssets.wasmURL};
+        if(useBlobWorker)cfg.classWorkerURL=_ffAssets.classWorkerURL;
+        try{await withTimeout(cand.load(cfg),90000,'FFmpeg took too long to start');ff=cand;break;}
+        catch(e){console.warn('FFmpeg load attempt failed (blob worker: '+useBlobWorker+')',e);try{cand.terminate();}catch(_){}}
+      }
+      if(!ff)throw new Error('FFmpeg worker failed to start');
+      _ffmpeg=ff;return ff;
+    }catch(err){console.warn('FFmpeg load failed via '+root,err);lastErr=err;_ffAssets=null;}
+  }
+  throw new Error('Could not load the video compressor ('+((lastErr&&lastErr.message)||'network error')+'). Check your internet connection.');
+}
+function disposeFFmpeg(){if(_ffmpeg){try{_ffmpeg.terminate();}catch(e){}_ffmpeg=null;}}   // frees the WASM memory between jobs
+
+function fmtDur(s){s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}h ${m}m`:m?`${m}m ${x}s`:`${x}s`;}
+
+// Duration via the browser's own decoder (instant). Returns null if the browser can't read the file (e.g. some MKV/HEVC).
+function probeVideoMeta(file){
+  return new Promise(resolve=>{
+    const v=document.createElement('video'),url=URL.createObjectURL(file);let done=false;
+    const fin=(m)=>{if(done)return;done=true;clearTimeout(t);v.removeAttribute('src');v.load();URL.revokeObjectURL(url);resolve(m);};
+    const t=setTimeout(()=>fin(null),10000);
+    v.preload='metadata';v.muted=true;
+    v.onloadedmetadata=()=>fin({duration:v.duration,height:v.videoHeight});
+    v.onerror=()=>fin(null);
+    v.src=url;
+  });
+}
+// Picks bitrate + resolution so that (video + audio) lands near `targetBytes`.
+function planCompression(duration,targetBytes){
+  const totalK=(targetBytes*8/1000)/duration;                  // total kbit/s budget
+  const audioK=totalK<300?48:totalK<600?64:96;
+  const videoK=Math.floor((totalK-audioK)*0.96);               // ~4% left for container overhead
+  const maxH=videoK>=2800?1080:videoK>=1300?720:videoK>=650?480:360;
+  return {audioK,videoK,maxH,tooLong:videoK<60,lowQuality:videoK<350};
+}
+function cancelPartJob(i){
+  const p=videoParts[i];if(!p||!p.job)return;
+  p.job.cancelled=true;
+  if(p.job.ff){try{p.job.ff.terminate();}catch(e){}if(_ffmpeg===p.job.ff)_ffmpeg=null;}
+  setPartUI(p,{txt:'Cancelling...',canCancel:false});
+}
+function cancelledError(){const e=new Error('Cancelled');e.cancelled=true;return e;}
+
+// Compresses `file` to an MP4 below VIDEO_DIRECT_LIMIT. Returns a File. `report(uiPatch)` drives the progress UI.
+async function compressVideoInBrowser(file,job,report){
+  report({show:true,pct:0,txt:'Loading video compressor (0%)...',right:'first time only (~32 MB)',canCancel:false});
+  const ff=await getFFmpeg(p=>report({pct:p,txt:`Loading video compressor (${Math.round(p)}%)...`}));
+  if(job.cancelled)throw cancelledError();
+  job.ff=ff;
+
+  const ext=((file.name.match(/\.([a-z0-9]{2,5})$/i)||[])[1]||'mp4').toLowerCase();
+  const inName='input.'+ext,outName='output.mp4',dir='/src';
+  let inPath=dir+'/'+inName,mounted=false,wroteInput=false;
+  const logs=[];const onLog=({message})=>{logs.push(message);if(logs.length>80)logs.shift();};
+  ff.on('log',onLog);
   try{
-    const res=await uploadToCloudinary(file,'video',(p)=>{fill.style.width=p+'%';pct.innerText=Math.round(p)+'%';});
-    videoParts[i].link=res.secure_url;videoParts[i].uploading=false;
-    const linkInp=document.getElementById('partLink'+i);if(linkInp)linkInp.value=res.secure_url;
-    txt.innerText='✅ আপলোড সম্পন্ন!';toast('✅ Part '+(i+1)+' আপলোড হয়েছে!');
-    setTimeout(()=>wrap.classList.remove('show'),2500);
-  }catch(err){videoParts[i].uploading=false;txt.innerText='❌ ব্যর্থ: '+err.message;toast('❌ Part '+(i+1)+' আপলোড ব্যর্থ: '+err.message);}
-  e.target.value='';
+    // Mount the file (no full copy into memory). Fall back to copying it in if WORKERFS isn't available.
+    try{await ff.createDir(dir);await ff.mount('WORKERFS',{blobs:[{name:inName,data:file}]},dir);mounted=true;}
+    catch(err){
+      console.warn('WORKERFS mount failed, copying file into FFmpeg memory instead',err);
+      inPath='/'+inName;await ff.writeFile(inPath,await window.FFmpegUtil.fetchFile(file));wroteInput=true;
+    }
+    if(job.cancelled)throw cancelledError();
+
+    // Duration
+    const meta=await probeVideoMeta(file);
+    let duration=meta&&isFinite(meta.duration)&&meta.duration>0?meta.duration:0;
+    if(!(duration>0)){
+      logs.length=0;await ff.exec(['-i',inPath]);   // exits non-zero (no output file) but prints "Duration: ..."
+      const m=logs.join('\n').match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
+      if(m)duration=(+m[1])*3600+(+m[2])*60+(+m[3]);
+    }
+    if(!(duration>0))throw new Error('Could not read this video\'s duration — the file may be corrupted or unsupported.');
+
+    let targetBytes=VIDEO_TARGET_BYTES;
+    for(let attempt=1;attempt<=2;attempt++){
+      const plan=planCompression(duration,targetBytes);
+      if(plan.tooLong){
+        const partMin=Math.max(1,Math.floor((VIDEO_TARGET_BYTES*8/1000/(500+96))/60));
+        const nParts=Math.ceil(duration/60/partMin);
+        throw new Error(`This video is ${fmtDur(duration)} long — squeezing it under 95 MB would make it unwatchable. Split it into about ${nParts} parts (≈${partMin} min each) and upload each as its own Part.`);
+      }
+      if(attempt===1&&plan.lowQuality&&!confirm(`This video is ${fmtDur(duration)} long, so fitting it under 95 MB means very low quality (~${plan.videoK} kbps, ${plan.maxH}p).\n\nContinue anyway? (Splitting into more Parts gives much better quality.)`))
+        throw cancelledError();
+
+      const args=['-i',inPath,'-map','0:v:0','-map','0:a:0?',
+        '-vf',`scale=-2:'min(${plan.maxH},ih)'`,
+        '-c:v','libx264','-preset',FFMPEG_PRESET,'-pix_fmt','yuv420p',
+        '-b:v',plan.videoK+'k','-maxrate',Math.round(plan.videoK*1.15)+'k','-bufsize',(plan.videoK*2)+'k',
+        '-c:a','aac','-b:a',plan.audioK+'k','-ac','2',
+        '-max_muxing_queue_size','1024','-movflags','+faststart','-y',outName];
+
+      const tStart=Date.now();let lastP=0;
+      report({show:true,pct:0,txt:'Compressing Video (0%)...',right:'starting…',canCancel:true});
+      const onProg=({progress,time})=>{
+        let p=(duration>0&&time>0)?(time/1e6)/duration:progress;
+        if(!(p>=0&&p<=1.05))p=progress;
+        if(!(p>=0))return;
+        p=Math.min(0.99,p);if(p<lastP)return;lastP=p;
+        const pc=Math.floor(p*100),el=(Date.now()-tStart)/1000;
+        report({pct:pc,txt:`Compressing Video (${pc}%)...`,right:p>0.03?'ETA '+fmtDur(el/p-el):'estimating…',canCancel:true});
+      };
+      ff.on('progress',onProg);
+      let code;
+      try{code=await ff.exec(args);}
+      catch(err){if(job.cancelled)throw cancelledError();throw err;}
+      finally{ff.off('progress',onProg);}
+      if(job.cancelled)throw cancelledError();
+      if(code!==0)throw new Error('FFmpeg could not encode this video. '+logs.slice(-4).join(' | '));
+
+      const data=await ff.readFile(outName);
+      try{await ff.deleteFile(outName);}catch(e){}
+      if(data.length<=VIDEO_DIRECT_LIMIT){
+        report({pct:100,txt:'Compressing Video (100%)...',right:fmtBytes(file.size)+' → '+fmtBytes(data.length),canCancel:false});
+        const base=file.name.replace(/\.[^.]+$/,'')||'video';
+        return new File([data],base+'_compressed.mp4',{type:'video/mp4'});
+      }
+      // Still too big → retry once with a proportionally lower target
+      targetBytes=Math.floor(targetBytes*(VIDEO_DIRECT_LIMIT*0.9/data.length));
+    }
+    throw new Error('Compressed video is still larger than 95 MB. Please split it into more Parts.');
+  }finally{
+    try{ff.off('log',onLog);}catch(e){}
+    try{if(mounted){await ff.unmount(dir);await ff.deleteDir(dir);}}catch(e){}
+    try{if(wroteInput)await ff.deleteFile(inPath);}catch(e){}
+    job.ff=null;
+  }
+}
+
+async function acquireWakeLock(){try{if('wakeLock' in navigator)return await navigator.wakeLock.request('screen');}catch(e){}return null;}
+window.addEventListener('beforeunload',e=>{
+  if(_compressBusy||videoParts.some(p=>p.uploading)){e.preventDefault();e.returnValue='';}
+});
+
+async function handlePartFileSelect(e,i){
+  const file=e.target.files[0];e.target.value='';
+  if(!file)return;
+  if(!isCldReady()){toast('❌ প্রথমে Cloudinary সেটআপ করুন!');switchTab('cloudinary');return;}
+  const part=videoParts[i];if(!part)return;
+  if(part.uploading){toast('⏳ This part is already being processed.');return;}
+  const needsCompression=file.size>VIDEO_DIRECT_LIMIT;
+  if(needsCompression&&_compressBusy){toast('⏳ Another video is being compressed. Please wait until it finishes.');return;}
+
+  part.uploading=true;
+  const job={cancelled:false,ff:null};part.job=job;
+  const wakeLock=await acquireWakeLock();
+  try{
+    let toUpload=file;
+    if(needsCompression){
+      _compressBusy=true;
+      toUpload=await compressVideoInBrowser(file,job,(ui)=>setPartUI(part,ui));
+      _compressBusy=false;disposeFFmpeg();
+    }
+    setPartUI(part,{show:true,pct:0,txt:'Uploading to Cloudinary (0%)...',right:fmtBytes(toUpload.size),canCancel:false});
+    const res=await uploadToCloudinary(toUpload,'video',(p)=>{
+      const pc=Math.min(100,Math.round(p));
+      setPartUI(part,{pct:pc,txt:`Uploading to Cloudinary (${pc}%)...`});
+    });
+    part.link=res.secure_url;
+    const idx=videoParts.indexOf(part);
+    const linkInp=idx>=0?document.getElementById('partLink'+idx):null;if(linkInp)linkInp.value=res.secure_url;
+    setPartUI(part,{pct:100,txt:'✅ আপলোড সম্পন্ন!',right:needsCompression?fmtBytes(file.size)+' → '+fmtBytes(toUpload.size):fmtBytes(toUpload.size)});
+    toast('✅ Part '+(videoParts.indexOf(part)+1)+' আপলোড হয়েছে!');
+    setTimeout(()=>setPartUI(part,{show:false}),2500);
+  }catch(err){
+    if(err&&err.cancelled){setPartUI(part,{show:true,pct:0,txt:'Cancelled',right:'',canCancel:false});toast('Compression cancelled.');setTimeout(()=>setPartUI(part,{show:false}),2000);}
+    else{setPartUI(part,{show:true,txt:'❌ ব্যর্থ: '+err.message,right:'',canCancel:false});toast('❌ Part '+(videoParts.indexOf(part)+1)+' আপলোড ব্যর্থ: '+err.message);}
+  }finally{
+    if(needsCompression){_compressBusy=false;disposeFFmpeg();}
+    part.uploading=false;part.job=null;
+    try{wakeLock&&wakeLock.release();}catch(_){}
+  }
 }
 
 // ─── PER-VIDEO AD UNLOCK SETTINGS ──────────────────────────────
