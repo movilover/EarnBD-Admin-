@@ -1685,39 +1685,75 @@ async function fetchAsBlobURL(url,mime,expectedBytes,onPct){
   for(;;){const {done,value}=await reader.read();if(done)break;chunks.push(value);got+=value.length;onPct(Math.min(99,got/total*100));}
   return URL.createObjectURL(new Blob(chunks,{type:mime}));
 }
-// Loads @ffmpeg/ffmpeg (single-thread core → works on GitHub Pages, no COOP/COEP headers or SharedArrayBuffer needed)
+// ── Cross-origin worker fix ──────────────────────────────────────────────────────────────
+// Browsers refuse to start a Web Worker from a CDN URL (different origin). FFmpeg.wasm creates its worker from the CDN,
+// so we briefly wrap window.Worker: any cross-origin worker script is downloaded and re-created as a same-origin blob: URL.
+const _workerBlobCache={};
+function fetchTextSync(url){const x=new XMLHttpRequest();x.open('GET',url,false);x.send();if(x.status!==200)throw new Error('HTTP '+x.status+' for '+url);return x.responseText;}
+function loadFFmpegPatched(ff,cfg,timeoutMs){
+  const RealWorker=window.Worker;
+  let failEarly;const early=new Promise((_,rej)=>{failEarly=rej;});early.catch(()=>{});
+  function PatchedWorker(url,opts){
+    let u=String(url);
+    try{
+      const parsed=new URL(u,location.href);
+      if(parsed.origin!==location.origin&&parsed.protocol!=='blob:'&&parsed.protocol!=='data:'){
+        if(!_workerBlobCache[u])_workerBlobCache[u]=URL.createObjectURL(new Blob([fetchTextSync(u)],{type:'text/javascript'}));
+        u=_workerBlobCache[u];
+      }
+    }catch(e){failEarly(e);throw e;}
+    const w=new RealWorker(u,opts);
+    w.addEventListener('error',ev=>failEarly(new Error('Worker error: '+(ev&&ev.message||'script failed to start'))));
+    return w;
+  }
+  PatchedWorker.prototype=RealWorker.prototype;
+  let p;
+  window.Worker=PatchedWorker;
+  try{p=ff.load(cfg);}finally{window.Worker=RealWorker;}
+  return withTimeout(Promise.race([p,early]),timeoutMs,'FFmpeg took too long to start');
+}
+
+// Loads @ffmpeg/ffmpeg (single-thread core → works on GitHub Pages, no COOP/COEP headers or SharedArrayBuffer needed).
+// Tries several loading strategies and CDNs, so one failing combination doesn't break uploads.
+let _ffPref=null;
 async function getFFmpeg(onLoadPct){
   if(_ffmpeg&&_ffmpeg.loaded)return _ffmpeg;
-  let lastErr=null;
+  const errors=[];
+  const short=(tag,e)=>tag+': '+String((e&&e.message)||e).slice(0,90);
   for(const root of FFMPEG_CDN_ROOTS){
+    const rootTag=root.includes('jsdelivr')?'jsd':'unpkg';
+    const ffBase=`${root}/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/umd`;
+    const utilJs=`${root}/@ffmpeg/util@${FFMPEG_UTIL_VERSION}/dist/umd/index.js`;
+    const coreUmd=`${root}/@ffmpeg/core@${FFMPEG_CORE_VERSION}/dist/umd`;
+    const coreEsm=`${root}/@ffmpeg/core@${FFMPEG_CORE_VERSION}/dist/esm`;
     try{
-      const ffBase=`${root}/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/umd`;
-      const utilJs=`${root}/@ffmpeg/util@${FFMPEG_UTIL_VERSION}/dist/umd/index.js`;
-      const coreBase=`${root}/@ffmpeg/core@${FFMPEG_CORE_VERSION}/dist/umd`;
       await loadScriptOnce(`${ffBase}/ffmpeg.js`);
       await loadScriptOnce(utilJs);
       if(!window.FFmpegWASM||!window.FFmpegUtil)throw new Error('FFmpeg scripts did not initialise');
       if(!_ffAssets||_ffAssets.root!==root){
-        let classWorkerURL;
-        try{classWorkerURL=await fetchAsBlobURL(`${ffBase}/814.ffmpeg.js`,'text/javascript');}
-        catch(e){console.warn('FFmpeg worker chunk not found, will use the default worker',e);}
-        const coreURL=await fetchAsBlobURL(`${coreBase}/ffmpeg-core.js`,'text/javascript');
-        const wasmURL=await fetchAsBlobURL(`${coreBase}/ffmpeg-core.wasm`,'application/wasm',FFMPEG_CORE_WASM_APPROX_BYTES,onLoadPct);
-        _ffAssets={root,classWorkerURL,coreURL,wasmURL};
+        _ffAssets={root,
+          coreURL:await fetchAsBlobURL(`${coreUmd}/ffmpeg-core.js`,'text/javascript'),
+          wasmURL:await fetchAsBlobURL(`${coreUmd}/ffmpeg-core.wasm`,'application/wasm',FFMPEG_CORE_WASM_APPROX_BYTES,onLoadPct)};
       }
-      let ff=null;
-      for(const useBlobWorker of(_ffAssets.classWorkerURL?[true,false]:[false])){
-        const cand=new window.FFmpegWASM.FFmpeg();
-        const cfg={coreURL:_ffAssets.coreURL,wasmURL:_ffAssets.wasmURL};
-        if(useBlobWorker)cfg.classWorkerURL=_ffAssets.classWorkerURL;
-        try{await withTimeout(cand.load(cfg),90000,'FFmpeg took too long to start');ff=cand;break;}
-        catch(e){console.warn('FFmpeg load attempt failed (blob worker: '+useBlobWorker+')',e);try{cand.terminate();}catch(_){}}
-      }
-      if(!ff)throw new Error('FFmpeg worker failed to start');
-      _ffmpeg=ff;return ff;
-    }catch(err){console.warn('FFmpeg load failed via '+root,err);lastErr=err;_ffAssets=null;}
+    }catch(e){errors.push(short(rootTag+'/download',e));_ffAssets=null;continue;}
+    const A=_ffAssets,lazy={};
+    const chunk=async()=>lazy.worker||(lazy.worker=await fetchAsBlobURL(`${ffBase}/814.ffmpeg.js`,'text/javascript'));
+    const strategies=[
+      {name:'A',cfg:async()=>({coreURL:A.coreURL,wasmURL:A.wasmURL})},                                     // default worker (re-hosted as blob) + UMD core
+      {name:'B',cfg:async()=>({classWorkerURL:await chunk(),coreURL:lazy.esm||(lazy.esm=await fetchAsBlobURL(`${coreEsm}/ffmpeg-core.js`,'text/javascript')),wasmURL:A.wasmURL})}, // blob worker + ESM core
+      {name:'C',cfg:async()=>({classWorkerURL:await chunk(),coreURL:A.coreURL,wasmURL:A.wasmURL})}          // blob worker + UMD core
+    ];
+    strategies.sort((x,y)=>(y.name===_ffPref)-(x.name===_ffPref));
+    for(const st of strategies){
+      const cand=new window.FFmpegWASM.FFmpeg();
+      try{
+        const cfg=await st.cfg();
+        await loadFFmpegPatched(cand,cfg,75000);
+        _ffPref=st.name;_ffmpeg=cand;return cand;
+      }catch(e){console.warn('FFmpeg load failed ('+rootTag+'/'+st.name+')',e);errors.push(short(rootTag+'/'+st.name,e));try{cand.terminate();}catch(_){}}
+    }
   }
-  throw new Error('Could not load the video compressor ('+((lastErr&&lastErr.message)||'network error')+'). Check your internet connection.');
+  throw new Error('Could not load the video compressor. ['+errors.slice(0,4).join(' | ')+']');
 }
 function disposeFFmpeg(){if(_ffmpeg){try{_ffmpeg.terminate();}catch(e){}_ffmpeg=null;}}   // frees the WASM memory between jobs
 
@@ -1765,8 +1801,15 @@ async function compressVideoInBrowser(file,job,report){
   ff.on('log',onLog);
   try{
     // Mount the file (no full copy into memory). Fall back to copying it in if WORKERFS isn't available.
-    try{await ff.createDir(dir);await ff.mount('WORKERFS',{blobs:[{name:inName,data:file}]},dir);mounted=true;}
-    catch(err){
+    try{
+      const mountOpts={blobs:[{name:inName,data:file}]};
+      try{await ff.createDir(dir);}catch(e){}
+      let ok=false;
+      try{ok=await ff.mount('WORKERFS',mountOpts,dir);}catch(e){ok=false;}
+      if(!ok){try{await ff.deleteDir(dir);}catch(e){}ok=await ff.mount('WORKERFS',mountOpts,dir);}   // some builds create the mount dir themselves
+      if(!ok)throw new Error('WORKERFS not available');
+      mounted=true;
+    }catch(err){
       console.warn('WORKERFS mount failed, copying file into FFmpeg memory instead',err);
       inPath='/'+inName;await ff.writeFile(inPath,await window.FFmpegUtil.fetchFile(file));wroteInput=true;
     }
@@ -1831,7 +1874,7 @@ async function compressVideoInBrowser(file,job,report){
     throw new Error('Compressed video is still larger than 95 MB. Please split it into more Parts.');
   }finally{
     try{ff.off('log',onLog);}catch(e){}
-    try{if(mounted){await ff.unmount(dir);await ff.deleteDir(dir);}}catch(e){}
+    if(mounted){try{await ff.unmount(dir);}catch(e){}try{await ff.deleteDir(dir);}catch(e){}}
     try{if(wroteInput)await ff.deleteFile(inPath);}catch(e){}
     job.ff=null;
   }
@@ -1874,7 +1917,7 @@ async function handlePartFileSelect(e,i){
     setTimeout(()=>setPartUI(part,{show:false}),2500);
   }catch(err){
     if(err&&err.cancelled){setPartUI(part,{show:true,pct:0,txt:'Cancelled',right:'',canCancel:false});toast('Compression cancelled.');setTimeout(()=>setPartUI(part,{show:false}),2000);}
-    else{setPartUI(part,{show:true,txt:'❌ ব্যর্থ: '+err.message,right:'',canCancel:false});toast('❌ Part '+(videoParts.indexOf(part)+1)+' আপলোড ব্যর্থ: '+err.message);}
+    else{setPartUI(part,{show:true,pct:0,txt:'❌ ব্যর্থ: '+err.message,right:'',canCancel:false});toast('❌ Part '+(videoParts.indexOf(part)+1)+' আপলোড ব্যর্থ: '+err.message);}
   }finally{
     if(needsCompression){_compressBusy=false;disposeFFmpeg();}
     part.uploading=false;part.job=null;
