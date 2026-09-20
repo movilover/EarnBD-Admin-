@@ -1566,7 +1566,12 @@ function simpleUpload(file,resourceType,onProgress){
 function chunkedUpload(file,onProgress){
   return new Promise((resolve,reject)=>{
     const uploadId='mlv-'+Date.now()+'-'+Math.random().toString(36).slice(2,10);
-    const totalSize=file.size;let start=0;
+    const totalSize=file.size;let start=0,attempt=0;
+    const MAX_RETRY=4;   // নেটওয়ার্ক/সার্ভার সমস্যায় একই টুকরো (chunk) সর্বোচ্চ ৪ বার আবার পাঠানো হবে
+    function retryOrFail(msg,retryable){
+      if(retryable&&attempt<MAX_RETRY){attempt++;setTimeout(uploadNextChunk,1500*attempt);}
+      else reject(new Error(msg));
+    }
     function uploadNextChunk(){
       const end=Math.min(start+CHUNK_SIZE,totalSize);const chunk=file.slice(start,end);
       const fd=new FormData();fd.append('file',chunk);fd.append('upload_preset',cldConfig.uploadPreset);
@@ -1578,12 +1583,21 @@ function chunkedUpload(file,onProgress){
       xhr.upload.onprogress=(e)=>{if(onProgress&&e.lengthComputable){const doneBytes=start+e.loaded;onProgress(Math.min((doneBytes/totalSize)*100,99.5));}};
       xhr.onload=()=>{
         if(xhr.status>=200&&xhr.status<300){
-          start=end;
+          attempt=0;start=end;
           if(start<totalSize)uploadNextChunk();
-          else{try{const res=JSON.parse(xhr.responseText);onProgress&&onProgress(100);resolve(res);}catch(e){reject(e);}}
-        }else{let msg='আপলোড ব্যর্থ';try{msg=JSON.parse(xhr.responseText).error?.message||msg;}catch(e){}reject(new Error(msg+' (status '+xhr.status+')'));}
+          else{
+            try{
+              const res=JSON.parse(xhr.responseText);
+              if(!res.secure_url)throw new Error('Cloudinary থেকে ভিডিও লিংক পাওয়া যায়নি — আবার আপলোড করুন');
+              onProgress&&onProgress(100);resolve(res);
+            }catch(e){reject(e);}
+          }
+        }else{
+          let msg='আপলোড ব্যর্থ';try{msg=JSON.parse(xhr.responseText).error?.message||msg;}catch(e){}
+          retryOrFail(msg+' (status '+xhr.status+')',xhr.status===0||xhr.status===429||xhr.status>=500);
+        }
       };
-      xhr.onerror=()=>reject(new Error('নেটওয়ার্ক সমস্যা হয়েছে — আবার চেষ্টা করুন'));
+      xhr.onerror=()=>retryOrFail('নেটওয়ার্ক সমস্যা হয়েছে — ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন',true);
       xhr.send(fd);
     }
     uploadNextChunk();
@@ -1629,7 +1643,7 @@ function renderVideoParts(){
       </div>
       <input class="part-link-inp" id="partLink${i}" placeholder="ভিডিও লিংক (অটো বসবে)" value="${esc(p.link||'')}" oninput="videoParts[${i}].link=this.value">
       <button class="btn btn-blue btn-sm" style="width:100%" onclick="document.getElementById('partFile${i}').click()"><i class="fa fa-video"></i> গ্যালারি থেকে Part ${i+1} ভিডিও আপলোড</button>
-      <div class="part-hint"><i class="fa fa-compress-alt"></i> Videos over 95 MB are compressed automatically in your browser before upload.</div>
+      <div class="part-hint"><i class="fa fa-info-circle"></i> MP4 (H.264) ভিডিও, সর্বোচ্চ ৯০ MB — সরাসরি Cloudinary-তে আপলোড হবে। বড় ভিডিও আগে HandBrake দিয়ে ছোট করে নিন।</div>
       <input type="file" id="partFile${i}" class="file-hidden" accept="video/*" onchange="handlePartFileSelect(event,${i})">
       <div class="upload-progress-wrap" id="partProgressWrap${i}">
         <div class="upload-progress-bar-bg"><div class="upload-progress-bar-fill" id="partProgressFill${i}"></div></div>
@@ -1656,7 +1670,8 @@ function setPartUI(part,ui){
 }
 
 // ─── VIDEO AUTO-COMPRESSION (FFmpeg.wasm — runs 100% in the browser) ───
-const VIDEO_DIRECT_LIMIT=95*1024*1024;   // <= 95 MB  → upload as-is
+const VIDEO_DIRECT_LIMIT=95*1000*1000;   // <= 95 MB → সরাসরি আপলোড (Cloudinary ফ্রি প্ল্যানে ভিডিও সীমা ~100 MB, তাই ফাঁক রাখা হয়েছে)
+const BROWSER_COMPRESSION_ENABLED=false; // false = বড় ভিডিওর জন্য ব্রাউজারে কম্প্রেশন বন্ধ (মোবাইলে ঘণ্টার পর ঘণ্টা লাগে/আটকে যায়)। পুরনো আচরণ চাইলে true করুন।
 const VIDEO_TARGET_BYTES=84*1024*1024;   // > 95 MB   → compress aiming for ~84 MB (headroom under the limit)
 const FFMPEG_VERSION='0.12.10',FFMPEG_UTIL_VERSION='0.12.1',FFMPEG_CORE_VERSION='0.12.6';
 const FFMPEG_CDN_ROOTS=['https://cdn.jsdelivr.net/npm','https://unpkg.com'];   // tried in order
@@ -1885,6 +1900,29 @@ window.addEventListener('beforeunload',e=>{
   if(_compressBusy||videoParts.some(p=>p.uploading)){e.preventDefault();e.returnValue='';}
 });
 
+// ─── আপলোডের আগে ফাইল যাচাই ও বড় ফাইলের নির্দেশনা ─────────────
+function isSupportedVideoFile(file){
+  const ext=((file.name.match(/\.([a-z0-9]{2,5})$/i)||[])[1]||'').toLowerCase();
+  return ['mp4','m4v','webm'].includes(ext)||file.type==='video/mp4'||file.type==='video/webm';
+}
+async function showOversizeGuide(part,file){
+  setPartUI(part,{show:true,pct:0,txt:'⚠️ '+fmtBytes(file.size)+' — ৯০ MB-র নিচে নামিয়ে আবার আপলোড করুন',right:'',canCancel:false});
+  const meta=await probeVideoMeta(file);
+  const dur=meta&&isFinite(meta.duration)&&meta.duration>0?meta.duration:0;
+  let msg='⚠️ ফাইলটি '+fmtBytes(file.size)+' — Cloudinary ফ্রি প্ল্যানে ১০০ MB-র বেশি ভিডিও আপলোড হয় না।\n\nআপলোডের আগে HandBrake (পিসি, ফ্রি) বা মোবাইলের কম্প্রেস অ্যাপ দিয়ে ৯০ MB-র নিচে নামিয়ে আনুন।\n';
+  if(dur){
+    const totalK=Math.floor((VIDEO_TARGET_BYTES*8/1000)/dur);
+    const audioK=totalK<300?48:64;
+    const videoK=Math.floor((totalK-audioK)*0.96);
+    const res=videoK>=2800?'1080p':videoK>=1300?'720p':videoK>=350?'480p':'360p';
+    msg+='\nআপনার ভিডিওর দৈর্ঘ্য: '+fmtDur(dur)+'\nHandBrake সেটিং: MP4 • H.264 • '+res+' • Avg Bitrate '+videoK+' kbps (2-pass) • Audio AAC '+audioK+' kbps\n';
+    if(videoK<200)msg+='\n⚠️ ভিডিও অনেক লম্বা — এই সাইজে কোয়ালিটি খুব কম হবে। দুই ভাগে ভাগ করা ভালো।';
+  }else{
+    msg+='\n(ভিডিওর দৈর্ঘ্য পড়া যায়নি — MP4, H.264 ফরম্যাটে নামান।)';
+  }
+  alert(msg);
+}
+
 async function handlePartFileSelect(e,i){
   const file=e.target.files[0];e.target.value='';
   if(!file)return;
@@ -1892,6 +1930,8 @@ async function handlePartFileSelect(e,i){
   const part=videoParts[i];if(!part)return;
   if(part.uploading){toast('⏳ This part is already being processed.');return;}
   const needsCompression=file.size>VIDEO_DIRECT_LIMIT;
+  if(!isSupportedVideoFile(file)&&!confirm('⚠️ এই ফাইলটি MP4 নয়।\n\nMKV / AVI / MOV / HEVC ভিডিও অনেক ব্রাউজারে চলে না, ইউজাররা দেখতে পারবে না।\nHandBrake দিয়ে MP4 (H.264) করে আপলোড করা নিরাপদ।\n\nতবুও আপলোড করবেন?'))return;
+  if(needsCompression&&!BROWSER_COMPRESSION_ENABLED){showOversizeGuide(part,file);return;}
   if(needsCompression&&_compressBusy){toast('⏳ Another video is being compressed. Please wait until it finishes.');return;}
 
   part.uploading=true;
