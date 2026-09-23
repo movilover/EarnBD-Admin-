@@ -571,6 +571,9 @@ input[type=file].img-file-inp{display:none}
       <div class="card" id="videoFormCard">
         <div class="ct" id="vFormTitle"><span><i class="fa fa-upload"></i> Upload Video</span></div>
         <input class="inp" id="vTitle" placeholder="Video Title *">
+        <label class="slbl">ভিডিও নাম্বার / সিরিয়াল (হোম পেজে পজিশন ঠিক করে — যত বেশি নাম্বার, তত উপরে দেখাবে)</label>
+        <input class="inp" id="vOrderNum" type="number" placeholder="অটো সাজেস্ট হবে">
+        <div class="info-box-blue" style="font-size:9px">📌 নতুন ভিডিও আপলোড করলে এখানে অটোমেটিক পরবর্তী নাম্বার বসে যাবে (যেমন আগের সর্বোচ্চ নাম্বার + ১), চাইলে বদলেও দিতে পারবেন। সবচেয়ে বড় নাম্বারের ভিডিওটা হোম পেজে সবার উপরে দেখাবে, সবচেয়ে ছোট নাম্বারেরটা নিচে — এতে ম্যানুয়ালি ড্র্যাগ করে সাজানো লাগবে না।</div>
         <div id="uploadCldWarning"></div>
         <label class="slbl">থাম্বনেইল ছবি</label>
         <div class="thumb-preview-wrap">
@@ -809,6 +812,23 @@ input[type=file].img-file-inp{display:none}
           <div class="two-col" style="margin-top:9px"><div><label class="bts-label">Daily Limit</label><input class="inp" id="gigapubDailyLimit" type="number" placeholder="15" style="margin-bottom:0"></div><div><label class="bts-label">Max Wrong Clicks</label><input class="inp" id="gigapubMaxWrong" type="number" placeholder="3" style="margin-bottom:0"></div></div>
           <div class="tog-row" style="margin-top:6px"><span class="tog-lbl">Gigapub Enabled</span><label class="toggle"><input type="checkbox" id="gigapubEnabled" checked><div class="tog-track"></div></label></div>
           <button class="btn btn-blue" onclick="saveBannerTask('gigapub')" style="margin-top:10px"><i class="fa fa-save"></i> Save Gigapub</button>
+        </div>
+        <div class="card" style="border-color:rgba(255,193,7,.3)">
+          <div class="ct"><i class="fa fa-lock" style="color:var(--gold)"></i> ভিডিও আনলক — গ্লোবাল অ্যাড সেটিংস</div>
+          <div class="info-box">📌 যেসব ভিডিওতে আলাদা করে Zone/App ID দেওয়া নেই, তারা এই গ্লোবাল সেটিং ব্যবহার করবে। এটা পূরণ না করলে ইউজার সাইটে ভিডিও আনলক করার সময় কোনো অ্যাড দেখানো যাবে না।</div>
+          <div class="two-col">
+            <div><label class="bts-label">Default নেটওয়ার্ক</label><select class="inp" id="uAdNetwork"><option value="monetag">Monetag</option><option value="gigapub">Gigapub</option></select></div>
+            <div><label class="bts-label">Zone/App ID</label><input class="inp" id="uAdZoneId" placeholder="e.g. 7654321"></div>
+          </div>
+          <div class="two-col">
+            <div><label class="bts-label">Ad Timer (সেকেন্ড)</label><input class="inp" id="uAdTimer" type="number" value="15"></div>
+            <div><label class="bts-label">ডিফল্ট কতটা অ্যাড লাগবে</label><input class="inp" id="uAdDefaultReq" type="number" value="2"></div>
+          </div>
+          <div class="two-col">
+            <div><label class="bts-label">আনলক থাকবে কত ঘণ্টা (0 = স্থায়ী)</label><input class="inp" id="uAdUnlockHours" type="number" value="0"></div>
+            <div><label class="bts-label">Daily Ad Limit</label><input class="inp" id="uAdDailyLimit" type="number" value="15"></div>
+          </div>
+          <button class="btn btn-gold" onclick="saveAdUnlockConfig()"><i class="fa fa-save"></i> Save Unlock Settings</button>
         </div>
         <div class="card" style="margin-bottom:0;border-color:rgba(229,0,0,.25)">
           <div class="ct"><i class="fa fa-exclamation-triangle" style="color:var(--orange)"></i> Wrong Click Penalty</div>
@@ -1194,8 +1214,8 @@ function initAdmin(){
     const d=snap.val()||{};
     const vm=d.movies||{};
     movies=Object.keys(vm).map(k=>({...vm[k],key:k}));
-    if(d.movieOrder)movies.sort((a,b)=>d.movieOrder.indexOf(a.key)-d.movieOrder.indexOf(b.key));
-    else movies.reverse();
+    sortMovies(movies);
+    if(!editVKey){const von=document.getElementById('vOrderNum');if(von&&!von.value.trim())von.value=suggestNextVideoOrder();}
     categories=d.categories||[];
     catIcons=d.categoryIcons||{};
     catBanners=d.categoryBanners||{};
@@ -2112,7 +2132,7 @@ function renderVideoList(){
   document.getElementById('vCat').innerHTML=categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
   const list=document.getElementById('videoList');
   if(!movies.length){list.innerHTML='<div class="empty">No videos yet</div>';return;}
-  list.innerHTML=movies.map(m=>`<div class="li" data-id="${m.key}"><i class="fas fa-bars handle"></i><img class="thumb" src="${esc(m.thumb)}" onerror="this.src='https://via.placeholder.com/58x38/111/333?text=IMG'"><div class="ii"><div class="it">${esc(m.title)}${m.premiumContent?'<span style="margin-left:5px;font-size:8px;background:var(--gold);color:#000;padding:1px 5px;border-radius:4px">PREM</span>':''}</div><div class="is">${esc(m.category||'—')} | Views: ${m.views||0} | Parts: ${(m.parts||[]).length||1}</div></div><div class="act"><button class="btn btn-blue btn-sm" onclick="editVideo('${m.key}')"><i class="fa fa-edit"></i></button><button class="btn btn-red btn-sm" onclick="deleteVideo('${m.key}')"><i class="fa fa-trash"></i></button></div></div>`).join('');
+  list.innerHTML=movies.map(m=>`<div class="li" data-id="${m.key}"><i class="fas fa-bars handle"></i><img class="thumb" src="${esc(m.thumb)}" onerror="this.src='https://via.placeholder.com/58x38/111/333?text=IMG'"><div class="ii"><div class="it">#${(m.order===undefined||m.order===null)?'—':esc(String(m.order))} ${esc(m.title)}${m.premiumContent?'<span style="margin-left:5px;font-size:8px;background:var(--gold);color:#000;padding:1px 5px;border-radius:4px">PREM</span>':''}</div><div class="is">${esc(m.category||'—')} | Views: ${m.views||0} | Parts: ${(m.parts||[]).length||1}</div></div><div class="act"><button class="btn btn-blue btn-sm" onclick="editVideo('${m.key}')"><i class="fa fa-edit"></i></button><button class="btn btn-red btn-sm" onclick="deleteVideo('${m.key}')"><i class="fa fa-trash"></i></button></div></div>`).join('');
   new Sortable(list,{animation:150,handle:'.handle'});
 }
 function doSaveVideo(){
@@ -2121,13 +2141,16 @@ function doSaveVideo(){
   if(!title){toast('❌ Title দিন!');return;}
   if(!videoParts.length||!videoParts.some(p=>p.link)){toast('❌ কমপক্ষে একটা Part-এ ভিডিও লিংক/আপলোড দিন!');return;}
   if(videoParts.some(p=>p.uploading)){toast('⏳ আপলোড এখনো চলছে, অপেক্ষা করুন...');return;}
+  const orderRaw=document.getElementById('vOrderNum').value.trim();
+  const orderVal=orderRaw?parseInt(orderRaw,10):suggestNextVideoOrder();
   const v={
     title,link,
     thumb:document.getElementById('vThumb').value.trim(),
     desc:document.getElementById('vDesc').value.trim(),
     category:document.getElementById('vCat').value,
     premiumContent:document.getElementById('vPremium').checked,
-    parts:videoParts.filter(p=>p.link).map(p=>({label:p.label,link:p.link}))
+    parts:videoParts.filter(p=>p.link).map(p=>({label:p.label,link:p.link})),
+    order:orderVal
   };
   if(!v.thumb){toast('❌ থাম্বনেইল দিন!');return;}
   const adsRequired=Math.max(1,Math.min(10,parseInt(document.getElementById('vAdsRequired').value||'1',10)||1));
@@ -2150,6 +2173,7 @@ function editVideo(key){
   const m=movies.find(x=>x.key===key);if(!m)return;
   editVKey=key;
   document.getElementById('vTitle').value=m.title;
+  document.getElementById('vOrderNum').value=(m.order===undefined||m.order===null)?'':m.order;
   document.getElementById('vThumb').value=m.thumb;onThumbUrlChange();
   document.getElementById('vDesc').value=m.desc||'';
   document.getElementById('vCat').value=m.category;
@@ -2177,9 +2201,27 @@ function editVideo(key){
   document.getElementById('vCancelBtn').style.display='flex';
   document.getElementById('videoFormCard').scrollIntoView({behavior:'smooth'});
 }
+// user.html-এর sortVids-এর সাথে সামঞ্জস্যপূর্ণ — order নাম্বার যত বেশি তত উপরে
+function sortMovies(arr){
+  return arr.sort((a,b)=>{
+    const ao=(a.order===undefined||a.order===null||a.order==='')?null:Number(a.order);
+    const bo=(b.order===undefined||b.order===null||b.order==='')?null:Number(b.order);
+    if(ao!==null&&bo!==null&&ao!==bo)return bo-ao;
+    if(ao!==null&&bo===null)return -1;
+    if(ao===null&&bo!==null)return 1;
+    return(a.key<b.key)?1:-1;
+  });
+}
+function suggestNextVideoOrder(){
+  let max=0;
+  movies.forEach(m=>{const o=Number(m.order);if(!isNaN(o)&&o>max)max=o;});
+  return max+1;
+}
 function resetVForm(){
   editVKey=null;videoParts=[];renderVideoParts();
-  document.getElementById('vTitle').value='';document.getElementById('vThumb').value='';onThumbUrlChange();
+  document.getElementById('vTitle').value='';
+  document.getElementById('vOrderNum').value=suggestNextVideoOrder();
+  document.getElementById('vThumb').value='';onThumbUrlChange();
   document.getElementById('vDesc').value='';document.getElementById('vPremium').checked=false;
   setv('vAdsRequired',3);setVAdMode('network');
   setv('vNetSelect','monetag');setv('vNetAppId','');setv('vNetTimer',15);
@@ -2190,7 +2232,15 @@ function resetVForm(){
   document.getElementById('vCancelBtn').style.display='none';
 }
 function deleteVideo(key){if(!confirm('Delete?'))return;db.ref('movies/'+key).remove();}
-function saveVideoOrder(){const o=Array.from(document.querySelectorAll('#videoList .li')).map(el=>el.getAttribute('data-id'));db.ref('movieOrder').set(o).then(()=>toast('Order saved!'));}
+// ★ FIX: আগে এটা আলাদা 'movieOrder' লিস্টে সেভ করতো, যা নতুন আপলোড করা ভিডিওর সাথে সিঙ্ক থাকতো না
+// (নতুন ভিডিও ঐ লিস্টে না থাকায় ভুল জায়গায় বসে যেত)। এখন ড্র্যাগ করে সাজানো পজিশন সরাসরি প্রতিটা
+// ভিডিওর নিজের order নাম্বারে সেভ হয় — এটাই এখন হোম পেজের একমাত্র সোর্স অফ ট্রুথ।
+function saveVideoOrder(){
+  const ids=Array.from(document.querySelectorAll('#videoList .li')).map(el=>el.getAttribute('data-id'));
+  const total=ids.length;const updates={};
+  ids.forEach((key,i)=>{updates['movies/'+key+'/order']=total-i;});
+  db.ref('/').update(updates).then(()=>toast('Order saved!'));
+}
 
 // ─── CATEGORIES ──────────────────────────────────────────────
 function renderCats(){const el=document.getElementById('catList');document.getElementById('vCat').innerHTML=categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');el.innerHTML=categories.map((c,i)=>{const hasIcon=catIcons[c]||'';const hasBanner=catBanners[c]||'';return`<div class="cat-icon-row" data-name="${esc(c)}"><div class="cir-top"><div style="display:flex;align-items:center;gap:8px"><i class="fas fa-bars handle" style="color:var(--t3);cursor:grab"></i><span class="cir-name">${esc(c)}</span></div><div style="display:flex;gap:6px"><button class="btn btn-purple btn-sm" onclick="openCatIconEditor('${c}')"><i class="fa fa-image"></i> Logo</button><button class="btn btn-blue btn-sm" onclick="editCat(${i})"><i class="fa fa-edit"></i></button><button class="btn btn-red btn-sm" onclick="deleteCat(${i})"><i class="fa fa-trash"></i></button></div></div><div class="cir-preview"><div><div style="font-size:9px;color:var(--t3);margin-bottom:3px">Icon</div><div class="cir-ic">${hasIcon&&hasIcon.startsWith('http')?`<img src="${esc(hasIcon)}">`:(hasIcon||'🎬')}</div></div>${hasBanner?`<div><div style="font-size:9px;color:var(--t3);margin-bottom:3px">Banner</div><div class="cir-banner"><img src="${esc(hasBanner)}"></div></div>`:''}</div></div>`;}).join('');new Sortable(el,{animation:150,handle:'.handle'});}
@@ -2255,6 +2305,21 @@ function saveSpinSettings(){db.ref('dailySpins').set(+document.getElementById('d
 
 // ─── AD NETWORKS ──────────────────────────────────────────────
 function updateTimerPreview(){const sec=+document.getElementById('monetagTimer').value||15;document.getElementById('timerPreviewCircle').innerText=sec+'s';}
+// ★ FIX: এই গ্লোবাল সেটিং আগে অ্যাডমিন প্যানেলে কোথাও সেভ করার অপশনই ছিল না — user.html কোড
+// 'adUnlockConfig' নোড থেকে network/zoneId/timer পড়তো, কিন্তু সেই নোডে কিছু লেখার কোনো ফর্ম ছিল না।
+// ফলে গ্লোবাল Zone ID সবসময় খালি থাকতো আর কোনো ভিডিওতে আলাদা করে Zone ID না দিলে অ্যাড একদমই লোড হতো না।
+function saveAdUnlockConfig(){
+  const cfg={
+    network:document.getElementById('uAdNetwork').value,
+    networkAppId:document.getElementById('uAdZoneId').value.trim(),
+    adTimer:parseInt(document.getElementById('uAdTimer').value||'15',10)||15,
+    defaultAdsRequired:Math.max(1,parseInt(document.getElementById('uAdDefaultReq').value||'2',10)||2),
+    unlockHours:parseFloat(document.getElementById('uAdUnlockHours').value||'0')||0,
+    adDailyLimit:parseInt(document.getElementById('uAdDailyLimit').value||'15',10)||15
+  };
+  if(!cfg.networkAppId){toast('⚠️ Zone/App ID দিন, নাহলে অ্যাড লোড হবে না!');}
+  db.ref('adUnlockConfig').set(cfg).then(()=>toast('✅ Unlock settings saved!'));
+}
 function saveBannerTask(type){const data={};if(type==='monetag'){data[type]={appId:document.getElementById('monetagAppId').value.trim(),link:document.getElementById('monetagLink').value.trim(),reward:+document.getElementById('monetagReward').value||20,timer:+document.getElementById('monetagTimer').value||15,dailyLimit:+document.getElementById('monetagDailyLimit').value||15,maxWrongClicks:+document.getElementById('monetagMaxWrong').value||3,enabled:document.getElementById('monetagEnabled').checked};}else if(type==='gigapub'){data[type]={appId:document.getElementById('gigapubAppId').value.trim(),link:document.getElementById('gigapubLink').value.trim(),reward:+document.getElementById('gigapubReward').value||25,timer:+document.getElementById('gigapubTimer').value||15,dailyLimit:+document.getElementById('gigapubDailyLimit').value||15,maxWrongClicks:+document.getElementById('gigapubMaxWrong').value||3,enabled:document.getElementById('gigapubEnabled').checked};}db.ref('bannerTasks').update(data).then(()=>toast('✅ '+type+' saved!'));}
 function saveWrongClickSettings(){db.ref('wrongClickSettings').set({warnMsg:document.getElementById('wrongClickWarnMsg').value.trim(),banMsg:document.getElementById('banWarningMsg').value.trim(),autoBan:document.getElementById('wrongClickAutoBan').checked}).then(()=>toast('✅ Saved!'));}
 function saveBannerAds(){db.ref('adBannerTopHtml').set(document.getElementById('adBannerTopHtml').value.trim());db.ref('adBannerMidHtml').set(document.getElementById('adBannerMidHtml').value.trim());toast('✅ Saved!');}
@@ -2407,7 +2472,7 @@ function saveSocialLinks(){['facebook','youtube','instagram'].forEach(s=>db.ref(
 function saveWalletLogo(method){const url=document.getElementById('logo-'+method).value.trim();if(!url){toast('URL দিন!');return;}db.ref('paymentLogos/'+method).set(url).then(()=>{const prev=document.getElementById('prev-'+method);prev.src=url;prev.style.display='block';toast('✅ Saved!');});}
 function saveAllWalletLogos(){['bkash','nagad','rocket','bank'].forEach(m=>{const url=document.getElementById('logo-'+m).value.trim();if(url)db.ref('paymentLogos/'+m).set(url);});toast('✅ All logos saved!');}
 
-function loadAllSettings(){db.ref('/').once('value',snap=>{const d=snap.val()||{};setv('tgLinkInp',d.telegramLink||'');setv('noticeBarInp',d.notice||'');setv('taskTimerInp',d.taskTimer||15);setv('reqRefsInp',d.requireReferrals||20);setv('minWdInp',d.minWithdraw||2000);setv('pointRateInp',d.pointRate||0.1);setv('dailyBonusInp',d.dailyBonus||25);setv('bkashNum',d.bkashNum||'');setv('nagadNum',d.nagadNum||'');setv('rocketNum',d.rocketNum||'');setv('pmNote',d.pmNote||'');setv('facebookLink',d.facebookLink||'');setv('youtubeLink',d.youtubeLink||'');setv('instagramLink',d.instagramLink||'');setv('botTokenInp',d.botToken||'');setv('adminUidInp',d.adminUid||'');setv('gen1Rate',d.gen1Rate||10);setv('gen2Rate',d.gen2Rate||5);setv('gen3Rate',d.gen3Rate||2);document.getElementById('g1RateDisplay').innerText=(d.gen1Rate||10)+'%';document.getElementById('g2RateDisplay').innerText=(d.gen2Rate||5)+'%';document.getElementById('g3RateDisplay').innerText=(d.gen3Rate||2)+'%';const logos=d.paymentLogos||{};['bkash','nagad','rocket','bank'].forEach(m=>{if(logos[m]){setv('logo-'+m,logos[m]);const prev=document.getElementById('prev-'+m);if(prev){prev.src=logos[m];prev.style.display='block';}}});setv('dailySpinsInp',d.dailySpins||3);setv('spinWaitInp',d.spinWaitTime||15);setv('spinAdLinkInp',d.spinAdLink||'');if(d.popupNotif){const p=d.popupNotif;setv('popupId',p.id||'');setv('popupIcon',p.icon||'');setv('popupTitle',p.title||'');setv('popupBody',p.body||'');setv('popupBtnText',p.btnText||'');setv('popupBtnLink',p.btnLink||'');const pe=document.getElementById('popupEnabled');if(pe)pe.checked=p.enabled!==false;}const bt=d.bannerTasks||{};if(bt.monetag){setv('monetagAppId',bt.monetag.appId||'');setv('monetagLink',bt.monetag.link||'');setv('monetagReward',bt.monetag.reward||20);setv('monetagTimer',bt.monetag.timer||15);setv('monetagDailyLimit',bt.monetag.dailyLimit||15);setv('monetagMaxWrong',bt.monetag.maxWrongClicks||3);const me=document.getElementById('monetagEnabled');if(me)me.checked=bt.monetag.enabled!==false;document.getElementById('timerPreviewCircle').innerText=(bt.monetag.timer||15)+'s';}if(bt.gigapub){setv('gigapubAppId',bt.gigapub.appId||'');setv('gigapubLink',bt.gigapub.link||'');setv('gigapubReward',bt.gigapub.reward||25);setv('gigapubTimer',bt.gigapub.timer||15);setv('gigapubDailyLimit',bt.gigapub.dailyLimit||15);setv('gigapubMaxWrong',bt.gigapub.maxWrongClicks||3);const ge=document.getElementById('gigapubEnabled');if(ge)ge.checked=bt.gigapub.enabled!==false;}const wcs=d.wrongClickSettings||{};setv('wrongClickWarnMsg',wcs.warnMsg||'');setv('banWarningMsg',wcs.banMsg||'');const wcab=document.getElementById('wrongClickAutoBan');if(wcab)wcab.checked=wcs.autoBan!==false;const ss=d.spamSettings||{};setv('spamBanMsg',ss.banMsg||'');setv('spamPatternsInp',(ss.patterns||[]).join(','));const sab=document.getElementById('spamAutoBan');if(sab)sab.checked=ss.autoBan!==false;const se=document.getElementById('spinEnabled');if(se)se.checked=d.spinEnabled!==false;const nb=document.getElementById('noticeBarVisible');if(nb)nb.checked=d.noticeBarVisible!==false;if(d.taskNotice){setv('noticeIcon',d.taskNotice.icon||'');setv('noticeTitle',d.taskNotice.title||'');setv('noticeMsg',d.taskNotice.msg||'');}if(d.sitePreviewUrl)setv('previewUrl',d.sitePreviewUrl);});}
+function loadAllSettings(){db.ref('/').once('value',snap=>{const d=snap.val()||{};setv('tgLinkInp',d.telegramLink||'');setv('noticeBarInp',d.notice||'');setv('taskTimerInp',d.taskTimer||15);setv('reqRefsInp',d.requireReferrals||20);setv('minWdInp',d.minWithdraw||2000);setv('pointRateInp',d.pointRate||0.1);setv('dailyBonusInp',d.dailyBonus||25);setv('bkashNum',d.bkashNum||'');setv('nagadNum',d.nagadNum||'');setv('rocketNum',d.rocketNum||'');setv('pmNote',d.pmNote||'');setv('facebookLink',d.facebookLink||'');setv('youtubeLink',d.youtubeLink||'');setv('instagramLink',d.instagramLink||'');setv('botTokenInp',d.botToken||'');setv('adminUidInp',d.adminUid||'');setv('gen1Rate',d.gen1Rate||10);setv('gen2Rate',d.gen2Rate||5);setv('gen3Rate',d.gen3Rate||2);document.getElementById('g1RateDisplay').innerText=(d.gen1Rate||10)+'%';document.getElementById('g2RateDisplay').innerText=(d.gen2Rate||5)+'%';document.getElementById('g3RateDisplay').innerText=(d.gen3Rate||2)+'%';const logos=d.paymentLogos||{};['bkash','nagad','rocket','bank'].forEach(m=>{if(logos[m]){setv('logo-'+m,logos[m]);const prev=document.getElementById('prev-'+m);if(prev){prev.src=logos[m];prev.style.display='block';}}});setv('dailySpinsInp',d.dailySpins||3);setv('spinWaitInp',d.spinWaitTime||15);setv('spinAdLinkInp',d.spinAdLink||'');if(d.popupNotif){const p=d.popupNotif;setv('popupId',p.id||'');setv('popupIcon',p.icon||'');setv('popupTitle',p.title||'');setv('popupBody',p.body||'');setv('popupBtnText',p.btnText||'');setv('popupBtnLink',p.btnLink||'');const pe=document.getElementById('popupEnabled');if(pe)pe.checked=p.enabled!==false;}const bt=d.bannerTasks||{};if(bt.monetag){setv('monetagAppId',bt.monetag.appId||'');setv('monetagLink',bt.monetag.link||'');setv('monetagReward',bt.monetag.reward||20);setv('monetagTimer',bt.monetag.timer||15);setv('monetagDailyLimit',bt.monetag.dailyLimit||15);setv('monetagMaxWrong',bt.monetag.maxWrongClicks||3);const me=document.getElementById('monetagEnabled');if(me)me.checked=bt.monetag.enabled!==false;document.getElementById('timerPreviewCircle').innerText=(bt.monetag.timer||15)+'s';}if(bt.gigapub){setv('gigapubAppId',bt.gigapub.appId||'');setv('gigapubLink',bt.gigapub.link||'');setv('gigapubReward',bt.gigapub.reward||25);setv('gigapubTimer',bt.gigapub.timer||15);setv('gigapubDailyLimit',bt.gigapub.dailyLimit||15);setv('gigapubMaxWrong',bt.gigapub.maxWrongClicks||3);const ge=document.getElementById('gigapubEnabled');if(ge)ge.checked=bt.gigapub.enabled!==false;}const wcs=d.wrongClickSettings||{};setv('wrongClickWarnMsg',wcs.warnMsg||'');setv('banWarningMsg',wcs.banMsg||'');const wcab=document.getElementById('wrongClickAutoBan');if(wcab)wcab.checked=wcs.autoBan!==false;const ss=d.spamSettings||{};setv('spamBanMsg',ss.banMsg||'');setv('spamPatternsInp',(ss.patterns||[]).join(','));const sab=document.getElementById('spamAutoBan');if(sab)sab.checked=ss.autoBan!==false;const se=document.getElementById('spinEnabled');if(se)se.checked=d.spinEnabled!==false;const nb=document.getElementById('noticeBarVisible');if(nb)nb.checked=d.noticeBarVisible!==false;if(d.taskNotice){setv('noticeIcon',d.taskNotice.icon||'');setv('noticeTitle',d.taskNotice.title||'');setv('noticeMsg',d.taskNotice.msg||'');}if(d.sitePreviewUrl)setv('previewUrl',d.sitePreviewUrl);const auc=d.adUnlockConfig||{};setv('uAdNetwork',auc.network||'monetag');setv('uAdZoneId',auc.networkAppId||'');setv('uAdTimer',auc.adTimer||15);setv('uAdDefaultReq',auc.defaultAdsRequired||2);setv('uAdUnlockHours',auc.unlockHours||0);setv('uAdDailyLimit',auc.adDailyLimit||15);});}
 
 // ─── HELPERS ─────────────────────────────────────────────────
 function setv(id,val){const el=document.getElementById(id);if(el)el.value=val;}
