@@ -590,6 +590,9 @@ input[type=file].img-file-inp{display:none}
           <div class="upload-progress-txt"><span id="thumbProgressTxt">আপলোড হচ্ছে...</span><span id="thumbProgressPct">0%</span></div>
         </div>
         <textarea class="inp" id="vDesc" placeholder="Description (optional)" style="min-height:60px"></textarea>
+        <div class="tog-row" style="margin-top:6px"><span class="tog-lbl">Home Page-এ দেখাবে</span><label class="toggle"><input type="checkbox" id="vShowHome" checked><div class="tog-track"></div></label></div>
+        <label class="slbl">Telegram ব্যাকআপ লিংক (ঐচ্ছিক — Telegram Mode চালু থাকলে ব্যবহার হবে)</label>
+        <input class="inp" id="vTelegramLink" placeholder="https://t.me/yourchannel/123">
         <select class="inp" id="vCat"></select>
         <div class="tog-row"><span class="tog-lbl">Premium Content</span><label class="toggle"><input type="checkbox" id="vPremium"><div class="tog-track"></div></label></div>
 
@@ -829,6 +832,17 @@ input[type=file].img-file-inp{display:none}
             <div><label class="bts-label">Daily Ad Limit</label><input class="inp" id="uAdDailyLimit" type="number" value="15"></div>
           </div>
           <button class="btn btn-gold" onclick="saveAdUnlockConfig()"><i class="fa fa-save"></i> Save Unlock Settings</button>
+        </div>
+        <div class="card" style="border-color:rgba(41,169,235,.35)">
+          <div class="ct"><i class="fa fa-exchange-alt" style="color:#29a9eb"></i> ভিডিও ডেলিভারি মোড (Cloudinary ⇄ Telegram Fallback)</div>
+          <div class="info-box">📌 <b>Cloudinary Mode</b>: ভিডিও সরাসরি সাইটে প্লে হবে। <b>Telegram Mode</b>: Cloudinary ডাউন থাকলে এটা চালু করুন — তখন প্লেয়ারের জায়গায় "Watch Now" বাটন দেখাবে যেটাতে ক্লিক করলে Telegram-এ ভিডিও ওপেন হবে (প্রতিটা ভিডিওতে Telegram Link বসাতে হবে, নিচে দেখুন)।</div>
+          <label class="slbl">মোড</label>
+          <select class="inp" id="vdMode"><option value="cloudinary">Cloudinary Mode (Normal)</option><option value="telegram">Telegram Mode (Fallback)</option></select>
+          <label class="slbl">Telegram Relay সার্ভার URL (ঐচ্ছিক — সার্ভার সেটআপ করলে বসান, README দেখুন)</label>
+          <input class="inp" id="vdRelayUrl" placeholder="https://your-server.onrender.com">
+          <label class="slbl">Relay সার্ভারের Admin API Key</label>
+          <input class="inp" id="vdRelayKey" placeholder="ADMIN_API_KEY যেটা সার্ভারে সেট করেছেন" type="password">
+          <button class="btn btn-blue" onclick="saveVideoDeliveryMode()"><i class="fa fa-save"></i> Save Delivery Mode</button>
         </div>
         <div class="card" style="margin-bottom:0;border-color:rgba(229,0,0,.25)">
           <div class="ct"><i class="fa fa-exclamation-triangle" style="color:var(--orange)"></i> Wrong Click Penalty</div>
@@ -1121,6 +1135,7 @@ let cronChatInterval=null,cronLog=JSON.parse(localStorage.getItem('adminCronLog'
 
 // ─── CLOUDINARY + MULTI-PART VIDEO STATE ─────────────────────
 let cldConfig={cloudName:'',uploadPreset:'',folder:''};
+let videoDeliveryCfg={};
 let videoParts=[];
 const CHUNK_SIZE=6*1024*1024;
 
@@ -1233,6 +1248,7 @@ function initAdmin(){
     if(!Object.keys(cmFeatures).length)seedDefaultFeatures();
     else refreshCmStats();
     cldConfig=d.cloudinaryConfig||{cloudName:'',uploadPreset:'',folder:''};
+    videoDeliveryCfg=d.videoDelivery||{};
     setv('cldCloudName',cldConfig.cloudName||'');
     setv('cldUploadPreset',cldConfig.uploadPreset||'');
     setv('cldFolder',cldConfig.folder||'');
@@ -1943,6 +1959,24 @@ async function showOversizeGuide(part,file){
   alert(msg);
 }
 
+// ★ NEW: Telegram Relay সার্ভারে ব্যাকগ্রাউন্ডে একই ভিডিও ফাইল পাঠানো (fallback mode ব্যাকআপ হিসেবে)
+async function relayToTelegramInBackground(file,title){
+  if(!videoDeliveryCfg.relayUrl){return;} // সার্ভার সেটআপ করা না থাকলে চুপচাপ স্কিপ
+  try{
+    const fd=new FormData();fd.append('video',file);fd.append('title',title);
+    const r=await fetch(videoDeliveryCfg.relayUrl+'/api/upload-video',{
+      method:'POST',headers:{'x-admin-key':videoDeliveryCfg.relayKey||''},body:fd
+    });
+    const data=await r.json();
+    if(data.ok&&data.telegram&&!data.telegram.skipped&&data.telegram.telegramLink){
+      const tgInp=document.getElementById('vTelegramLink');
+      if(tgInp&&!tgInp.value.trim())tgInp.value=data.telegram.telegramLink;
+      toast('✅ Telegram ব্যাকআপ লিংকও তৈরি হয়েছে!');
+    }else if(data.ok&&data.telegram&&data.telegram.skipped){
+      console.warn('Telegram relay skipped:',data.telegram.reason);
+    }
+  }catch(e){console.warn('Telegram relay failed (Cloudinary upload অক্ষত আছে):',e.message);}
+}
 async function handlePartFileSelect(e,i){
   const file=e.target.files[0];e.target.value='';
   if(!file)return;
@@ -1972,6 +2006,10 @@ async function handlePartFileSelect(e,i){
     part.link=res.secure_url;
     const idx=videoParts.indexOf(part);
     const linkInp=idx>=0?document.getElementById('partLink'+idx):null;if(linkInp)linkInp.value=res.secure_url;
+    // ★ NEW: Cloudinary আপলোড শেষ হওয়ার সাথে সাথে, যদি Telegram Relay সার্ভার সেটআপ করা থাকে,
+    // একই ফাইল ব্যাকগ্রাউন্ডে Telegram-এও পাঠানো হয় (fallback mode-এর জন্য ব্যাকআপ হিসেবে) —
+    // এতে মূল আপলোড প্রক্রিয়া আটকে থাকে না (non-blocking)।
+    if(idx===0)relayToTelegramInBackground(toUpload,document.getElementById('vTitle').value.trim()||'Untitled');
     setPartUI(part,{pct:100,txt:'✅ আপলোড সম্পন্ন!',right:needsCompression?fmtBytes(file.size)+' → '+fmtBytes(toUpload.size):fmtBytes(toUpload.size)});
     toast('✅ Part '+(videoParts.indexOf(part)+1)+' আপলোড হয়েছে!');
     setTimeout(()=>setPartUI(part,{show:false}),2500);
@@ -2132,7 +2170,7 @@ function renderVideoList(){
   document.getElementById('vCat').innerHTML=categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
   const list=document.getElementById('videoList');
   if(!movies.length){list.innerHTML='<div class="empty">No videos yet</div>';return;}
-  list.innerHTML=movies.map(m=>`<div class="li" data-id="${m.key}"><i class="fas fa-bars handle"></i><img class="thumb" src="${esc(m.thumb)}" onerror="this.src='https://via.placeholder.com/58x38/111/333?text=IMG'"><div class="ii"><div class="it">#${(m.order===undefined||m.order===null)?'—':esc(String(m.order))} ${esc(m.title)}${m.premiumContent?'<span style="margin-left:5px;font-size:8px;background:var(--gold);color:#000;padding:1px 5px;border-radius:4px">PREM</span>':''}</div><div class="is">${esc(m.category||'—')} | Views: ${m.views||0} | Parts: ${(m.parts||[]).length||1}</div></div><div class="act"><button class="btn btn-blue btn-sm" onclick="editVideo('${m.key}')"><i class="fa fa-edit"></i></button><button class="btn btn-red btn-sm" onclick="deleteVideo('${m.key}')"><i class="fa fa-trash"></i></button></div></div>`).join('');
+  list.innerHTML=movies.map(m=>`<div class="li" data-id="${m.key}"><i class="fas fa-bars handle"></i><img class="thumb" src="${esc(m.thumb)}" onerror="this.src='https://via.placeholder.com/58x38/111/333?text=IMG'"><div class="ii"><div class="it">#${(m.order===undefined||m.order===null)?'—':esc(String(m.order))} ${esc(m.title)}${m.premiumContent?'<span style="margin-left:5px;font-size:8px;background:var(--gold);color:#000;padding:1px 5px;border-radius:4px">PREM</span>':''}${m.showOnHome===false?'<span style="margin-left:5px;font-size:8px;background:#666;color:#fff;padding:1px 5px;border-radius:4px">HIDDEN FROM HOME</span>':''}</div><div class="is">${esc(m.category||'—')} | Views: ${m.views||0} | Parts: ${(m.parts||[]).length||1}</div></div><div class="act"><button class="btn btn-blue btn-sm" onclick="editVideo('${m.key}')"><i class="fa fa-edit"></i></button><button class="btn btn-red btn-sm" onclick="deleteVideo('${m.key}')"><i class="fa fa-trash"></i></button></div></div>`).join('');
   new Sortable(list,{animation:150,handle:'.handle'});
 }
 function doSaveVideo(){
@@ -2149,6 +2187,8 @@ function doSaveVideo(){
     desc:document.getElementById('vDesc').value.trim(),
     category:document.getElementById('vCat').value,
     premiumContent:document.getElementById('vPremium').checked,
+    showOnHome:document.getElementById('vShowHome').checked,
+    telegramLink:document.getElementById('vTelegramLink').value.trim(),
     parts:videoParts.filter(p=>p.link).map(p=>({label:p.label,link:p.link})),
     order:orderVal
   };
@@ -2178,6 +2218,8 @@ function editVideo(key){
   document.getElementById('vDesc').value=m.desc||'';
   document.getElementById('vCat').value=m.category;
   document.getElementById('vPremium').checked=m.premiumContent||false;
+  document.getElementById('vShowHome').checked=m.showOnHome!==false;
+  document.getElementById('vTelegramLink').value=m.telegramLink||'';
   videoParts=(m.parts&&m.parts.length)?m.parts.map(p=>({label:p.label,link:p.link,uploading:false})):(m.link?[{label:'Part 1',link:m.link,uploading:false}]:[]);
   renderVideoParts();
   setv('vAdsRequired',m.adsRequired||3);
@@ -2223,6 +2265,8 @@ function resetVForm(){
   document.getElementById('vOrderNum').value=suggestNextVideoOrder();
   document.getElementById('vThumb').value='';onThumbUrlChange();
   document.getElementById('vDesc').value='';document.getElementById('vPremium').checked=false;
+  document.getElementById('vShowHome').checked=true;
+  document.getElementById('vTelegramLink').value='';
   setv('vAdsRequired',3);setVAdMode('network');
   setv('vNetSelect','monetag');setv('vNetAppId','');setv('vNetTimer',15);
   directLinksState=[];
@@ -2308,6 +2352,12 @@ function updateTimerPreview(){const sec=+document.getElementById('monetagTimer')
 // ★ FIX: এই গ্লোবাল সেটিং আগে অ্যাডমিন প্যানেলে কোথাও সেভ করার অপশনই ছিল না — user.html কোড
 // 'adUnlockConfig' নোড থেকে network/zoneId/timer পড়তো, কিন্তু সেই নোডে কিছু লেখার কোনো ফর্ম ছিল না।
 // ফলে গ্লোবাল Zone ID সবসময় খালি থাকতো আর কোনো ভিডিওতে আলাদা করে Zone ID না দিলে অ্যাড একদমই লোড হতো না।
+function saveVideoDeliveryMode(){
+  const mode=document.getElementById('vdMode').value;
+  const relayUrl=document.getElementById('vdRelayUrl').value.trim().replace(/\/$/,'');
+  const relayKey=document.getElementById('vdRelayKey').value.trim();
+  db.ref('videoDelivery').update({mode,relayUrl,relayKey}).then(()=>toast('✅ Delivery mode saved! ('+mode+')'));
+}
 function saveAdUnlockConfig(){
   const cfg={
     network:document.getElementById('uAdNetwork').value,
@@ -2472,7 +2522,7 @@ function saveSocialLinks(){['facebook','youtube','instagram'].forEach(s=>db.ref(
 function saveWalletLogo(method){const url=document.getElementById('logo-'+method).value.trim();if(!url){toast('URL দিন!');return;}db.ref('paymentLogos/'+method).set(url).then(()=>{const prev=document.getElementById('prev-'+method);prev.src=url;prev.style.display='block';toast('✅ Saved!');});}
 function saveAllWalletLogos(){['bkash','nagad','rocket','bank'].forEach(m=>{const url=document.getElementById('logo-'+m).value.trim();if(url)db.ref('paymentLogos/'+m).set(url);});toast('✅ All logos saved!');}
 
-function loadAllSettings(){db.ref('/').once('value',snap=>{const d=snap.val()||{};setv('tgLinkInp',d.telegramLink||'');setv('noticeBarInp',d.notice||'');setv('taskTimerInp',d.taskTimer||15);setv('reqRefsInp',d.requireReferrals||20);setv('minWdInp',d.minWithdraw||2000);setv('pointRateInp',d.pointRate||0.1);setv('dailyBonusInp',d.dailyBonus||25);setv('bkashNum',d.bkashNum||'');setv('nagadNum',d.nagadNum||'');setv('rocketNum',d.rocketNum||'');setv('pmNote',d.pmNote||'');setv('facebookLink',d.facebookLink||'');setv('youtubeLink',d.youtubeLink||'');setv('instagramLink',d.instagramLink||'');setv('botTokenInp',d.botToken||'');setv('adminUidInp',d.adminUid||'');setv('gen1Rate',d.gen1Rate||10);setv('gen2Rate',d.gen2Rate||5);setv('gen3Rate',d.gen3Rate||2);document.getElementById('g1RateDisplay').innerText=(d.gen1Rate||10)+'%';document.getElementById('g2RateDisplay').innerText=(d.gen2Rate||5)+'%';document.getElementById('g3RateDisplay').innerText=(d.gen3Rate||2)+'%';const logos=d.paymentLogos||{};['bkash','nagad','rocket','bank'].forEach(m=>{if(logos[m]){setv('logo-'+m,logos[m]);const prev=document.getElementById('prev-'+m);if(prev){prev.src=logos[m];prev.style.display='block';}}});setv('dailySpinsInp',d.dailySpins||3);setv('spinWaitInp',d.spinWaitTime||15);setv('spinAdLinkInp',d.spinAdLink||'');if(d.popupNotif){const p=d.popupNotif;setv('popupId',p.id||'');setv('popupIcon',p.icon||'');setv('popupTitle',p.title||'');setv('popupBody',p.body||'');setv('popupBtnText',p.btnText||'');setv('popupBtnLink',p.btnLink||'');const pe=document.getElementById('popupEnabled');if(pe)pe.checked=p.enabled!==false;}const bt=d.bannerTasks||{};if(bt.monetag){setv('monetagAppId',bt.monetag.appId||'');setv('monetagLink',bt.monetag.link||'');setv('monetagReward',bt.monetag.reward||20);setv('monetagTimer',bt.monetag.timer||15);setv('monetagDailyLimit',bt.monetag.dailyLimit||15);setv('monetagMaxWrong',bt.monetag.maxWrongClicks||3);const me=document.getElementById('monetagEnabled');if(me)me.checked=bt.monetag.enabled!==false;document.getElementById('timerPreviewCircle').innerText=(bt.monetag.timer||15)+'s';}if(bt.gigapub){setv('gigapubAppId',bt.gigapub.appId||'');setv('gigapubLink',bt.gigapub.link||'');setv('gigapubReward',bt.gigapub.reward||25);setv('gigapubTimer',bt.gigapub.timer||15);setv('gigapubDailyLimit',bt.gigapub.dailyLimit||15);setv('gigapubMaxWrong',bt.gigapub.maxWrongClicks||3);const ge=document.getElementById('gigapubEnabled');if(ge)ge.checked=bt.gigapub.enabled!==false;}const wcs=d.wrongClickSettings||{};setv('wrongClickWarnMsg',wcs.warnMsg||'');setv('banWarningMsg',wcs.banMsg||'');const wcab=document.getElementById('wrongClickAutoBan');if(wcab)wcab.checked=wcs.autoBan!==false;const ss=d.spamSettings||{};setv('spamBanMsg',ss.banMsg||'');setv('spamPatternsInp',(ss.patterns||[]).join(','));const sab=document.getElementById('spamAutoBan');if(sab)sab.checked=ss.autoBan!==false;const se=document.getElementById('spinEnabled');if(se)se.checked=d.spinEnabled!==false;const nb=document.getElementById('noticeBarVisible');if(nb)nb.checked=d.noticeBarVisible!==false;if(d.taskNotice){setv('noticeIcon',d.taskNotice.icon||'');setv('noticeTitle',d.taskNotice.title||'');setv('noticeMsg',d.taskNotice.msg||'');}if(d.sitePreviewUrl)setv('previewUrl',d.sitePreviewUrl);const auc=d.adUnlockConfig||{};setv('uAdNetwork',auc.network||'monetag');setv('uAdZoneId',auc.networkAppId||'');setv('uAdTimer',auc.adTimer||15);setv('uAdDefaultReq',auc.defaultAdsRequired||2);setv('uAdUnlockHours',auc.unlockHours||0);setv('uAdDailyLimit',auc.adDailyLimit||15);});}
+function loadAllSettings(){db.ref('/').once('value',snap=>{const d=snap.val()||{};setv('tgLinkInp',d.telegramLink||'');setv('noticeBarInp',d.notice||'');setv('taskTimerInp',d.taskTimer||15);setv('reqRefsInp',d.requireReferrals||20);setv('minWdInp',d.minWithdraw||2000);setv('pointRateInp',d.pointRate||0.1);setv('dailyBonusInp',d.dailyBonus||25);setv('bkashNum',d.bkashNum||'');setv('nagadNum',d.nagadNum||'');setv('rocketNum',d.rocketNum||'');setv('pmNote',d.pmNote||'');setv('facebookLink',d.facebookLink||'');setv('youtubeLink',d.youtubeLink||'');setv('instagramLink',d.instagramLink||'');setv('botTokenInp',d.botToken||'');setv('adminUidInp',d.adminUid||'');setv('gen1Rate',d.gen1Rate||10);setv('gen2Rate',d.gen2Rate||5);setv('gen3Rate',d.gen3Rate||2);document.getElementById('g1RateDisplay').innerText=(d.gen1Rate||10)+'%';document.getElementById('g2RateDisplay').innerText=(d.gen2Rate||5)+'%';document.getElementById('g3RateDisplay').innerText=(d.gen3Rate||2)+'%';const logos=d.paymentLogos||{};['bkash','nagad','rocket','bank'].forEach(m=>{if(logos[m]){setv('logo-'+m,logos[m]);const prev=document.getElementById('prev-'+m);if(prev){prev.src=logos[m];prev.style.display='block';}}});setv('dailySpinsInp',d.dailySpins||3);setv('spinWaitInp',d.spinWaitTime||15);setv('spinAdLinkInp',d.spinAdLink||'');if(d.popupNotif){const p=d.popupNotif;setv('popupId',p.id||'');setv('popupIcon',p.icon||'');setv('popupTitle',p.title||'');setv('popupBody',p.body||'');setv('popupBtnText',p.btnText||'');setv('popupBtnLink',p.btnLink||'');const pe=document.getElementById('popupEnabled');if(pe)pe.checked=p.enabled!==false;}const bt=d.bannerTasks||{};if(bt.monetag){setv('monetagAppId',bt.monetag.appId||'');setv('monetagLink',bt.monetag.link||'');setv('monetagReward',bt.monetag.reward||20);setv('monetagTimer',bt.monetag.timer||15);setv('monetagDailyLimit',bt.monetag.dailyLimit||15);setv('monetagMaxWrong',bt.monetag.maxWrongClicks||3);const me=document.getElementById('monetagEnabled');if(me)me.checked=bt.monetag.enabled!==false;document.getElementById('timerPreviewCircle').innerText=(bt.monetag.timer||15)+'s';}if(bt.gigapub){setv('gigapubAppId',bt.gigapub.appId||'');setv('gigapubLink',bt.gigapub.link||'');setv('gigapubReward',bt.gigapub.reward||25);setv('gigapubTimer',bt.gigapub.timer||15);setv('gigapubDailyLimit',bt.gigapub.dailyLimit||15);setv('gigapubMaxWrong',bt.gigapub.maxWrongClicks||3);const ge=document.getElementById('gigapubEnabled');if(ge)ge.checked=bt.gigapub.enabled!==false;}const wcs=d.wrongClickSettings||{};setv('wrongClickWarnMsg',wcs.warnMsg||'');setv('banWarningMsg',wcs.banMsg||'');const wcab=document.getElementById('wrongClickAutoBan');if(wcab)wcab.checked=wcs.autoBan!==false;const ss=d.spamSettings||{};setv('spamBanMsg',ss.banMsg||'');setv('spamPatternsInp',(ss.patterns||[]).join(','));const sab=document.getElementById('spamAutoBan');if(sab)sab.checked=ss.autoBan!==false;const se=document.getElementById('spinEnabled');if(se)se.checked=d.spinEnabled!==false;const nb=document.getElementById('noticeBarVisible');if(nb)nb.checked=d.noticeBarVisible!==false;if(d.taskNotice){setv('noticeIcon',d.taskNotice.icon||'');setv('noticeTitle',d.taskNotice.title||'');setv('noticeMsg',d.taskNotice.msg||'');}if(d.sitePreviewUrl)setv('previewUrl',d.sitePreviewUrl);const auc=d.adUnlockConfig||{};setv('uAdNetwork',auc.network||'monetag');setv('uAdZoneId',auc.networkAppId||'');setv('uAdTimer',auc.adTimer||15);setv('uAdDefaultReq',auc.defaultAdsRequired||2);setv('uAdUnlockHours',auc.unlockHours||0);setv('uAdDailyLimit',auc.adDailyLimit||15);const vd=d.videoDelivery||{};setv('vdMode',vd.mode||'cloudinary');setv('vdRelayUrl',vd.relayUrl||'');setv('vdRelayKey',vd.relayKey||'');});}
 
 // ─── HELPERS ─────────────────────────────────────────────────
 function setv(id,val){const el=document.getElementById(id);if(el)el.value=val;}
