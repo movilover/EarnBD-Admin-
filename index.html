@@ -591,8 +591,9 @@ input[type=file].img-file-inp{display:none}
         </div>
         <textarea class="inp" id="vDesc" placeholder="Description (optional)" style="min-height:60px"></textarea>
         <div class="tog-row" style="margin-top:6px"><span class="tog-lbl">Home Page-এ দেখাবে</span><label class="toggle"><input type="checkbox" id="vShowHome" checked><div class="tog-track"></div></label></div>
-        <label class="slbl">Telegram ব্যাকআপ লিংক (ঐচ্ছিক — Telegram Mode চালু থাকলে ব্যবহার হবে)</label>
-        <input class="inp" id="vTelegramLink" placeholder="https://t.me/yourchannel/123">
+        <label class="slbl">Telegram ব্যাকআপ (Telegram Mode চালু থাকলে ব্যবহার হবে — Part 1 ভিডিও আপলোড করলে অটো তৈরি হয়ে যাবে)</label>
+        <div id="vTelegramStatus" class="info-box" style="font-size:10.5px">⚪ এখনো তৈরি হয়নি — Part 1 ভিডিও আপলোড করুন</div>
+        <input type="hidden" id="vTelegramFileId" value="">
         <select class="inp" id="vCat"></select>
         <div class="tog-row"><span class="tog-lbl">Premium Content</span><label class="toggle"><input type="checkbox" id="vPremium"><div class="tog-track"></div></label></div>
 
@@ -834,15 +835,20 @@ input[type=file].img-file-inp{display:none}
           <button class="btn btn-gold" onclick="saveAdUnlockConfig()"><i class="fa fa-save"></i> Save Unlock Settings</button>
         </div>
         <div class="card" style="border-color:rgba(41,169,235,.35)">
-          <div class="ct"><i class="fa fa-exchange-alt" style="color:#29a9eb"></i> ভিডিও ডেলিভারি মোড (Cloudinary ⇄ Telegram Fallback)</div>
-          <div class="info-box">📌 <b>Cloudinary Mode</b>: ভিডিও সরাসরি সাইটে প্লে হবে। <b>Telegram Mode</b>: Cloudinary ডাউন থাকলে এটা চালু করুন — তখন প্লেয়ারের জায়গায় "Watch Now" বাটন দেখাবে যেটাতে ক্লিক করলে Telegram-এ ভিডিও ওপেন হবে (প্রতিটা ভিডিওতে Telegram Link বসাতে হবে, নিচে দেখুন)।</div>
+          <div class="ct"><i class="fa fa-exchange-alt" style="color:#29a9eb"></i> ভিডিও ডেলিভারি মোড (Cloudinary ⇄ Telegram Bot Fallback)</div>
+          <div class="info-box">📌 <b>Cloudinary Mode</b>: ভিডিও সরাসরি সাইটে প্লে হবে। <b>Telegram Mode</b>: Cloudinary ডাউন থাকলে এটা চালু করুন — তখন "Watch Now" বাটনে ক্লিক করলে ইউজার সরাসরি আপনার Telegram বটে রিডাইরেক্ট হবে, বট নিজে ভিডিও পাঠাবে (protect_content সহ — সেভ/ফরওয়ার্ড বন্ধ, ২৪ ঘণ্টা পর অটো-ডিলিট)। প্রতিটা ভিডিওর Telegram ব্যাকআপ Part 1 আপলোড করলে অটোমেটিক তৈরি হয়ে যায় (উপরে "Telegram ব্যাকআপ" স্ট্যাটাস দেখুন)।</div>
+          <div class="warn-box" style="background:rgba(245,197,24,.1);border-left:3px solid var(--gold);border-radius:8px;padding:10px 12px;font-size:10.5px;line-height:1.7;margin-bottom:12px">
+            ⚠️ <b>Bot Token, Channel ID, Bot Username</b> — এই ৩টা স্পর্শকাতর তথ্য নিরাপত্তার কারণে এই অ্যাডমিন প্যানেলে (ব্রাউজারে) রাখা হয় না — এগুলো বসাতে হবে আপনার ব্যাকএন্ড বট-সার্ভারের <code>.env</code> ফাইলে (সার্ভারটা ডেপ্লয় করার সময়)। নিচে শুধু সেই সার্ভারের <b>URL</b> আর তার নিজস্ব <b>Admin API Key</b> বসাবেন (এটা ব্রাউজারে রাখা নিরাপদ, কারণ এটা শুধু আপনার সার্ভারে অথেনটিকেট করার জন্য ব্যবহার হয়)।
+          </div>
           <label class="slbl">মোড</label>
           <select class="inp" id="vdMode"><option value="cloudinary">Cloudinary Mode (Normal)</option><option value="telegram">Telegram Mode (Fallback)</option></select>
-          <label class="slbl">Telegram Relay সার্ভার URL (ঐচ্ছিক — সার্ভার সেটআপ করলে বসান, README দেখুন)</label>
-          <input class="inp" id="vdRelayUrl" placeholder="https://your-server.onrender.com">
-          <label class="slbl">Relay সার্ভারের Admin API Key</label>
-          <input class="inp" id="vdRelayKey" placeholder="ADMIN_API_KEY যেটা সার্ভারে সেট করেছেন" type="password">
+          <label class="slbl">Bot Server URL (যেখানে server/ ফোল্ডারটা ডেপ্লয় করেছেন)</label>
+          <input class="inp" id="vdRelayUrl" placeholder="https://your-bot-server.onrender.com">
+          <label class="slbl">Bot Server-এর Admin API Key</label>
+          <input class="inp" id="vdRelayKey" placeholder="সার্ভারের .env-এ ADMIN_API_KEY যা দিয়েছেন সেটাই" type="password">
           <button class="btn btn-blue" onclick="saveVideoDeliveryMode()"><i class="fa fa-save"></i> Save Delivery Mode</button>
+          <button class="btn" style="background:var(--bg3);margin-top:8px" onclick="testBotServerConnection()"><i class="fa fa-plug"></i> কানেকশন টেস্ট করুন</button>
+          <div id="vdTestResult" style="font-size:10.5px;margin-top:8px"></div>
         </div>
         <div class="card" style="margin-bottom:0;border-color:rgba(229,0,0,.25)">
           <div class="ct"><i class="fa fa-exclamation-triangle" style="color:var(--orange)"></i> Wrong Click Penalty</div>
@@ -1959,23 +1965,30 @@ async function showOversizeGuide(part,file){
   alert(msg);
 }
 
-// ★ NEW: Telegram Relay সার্ভারে ব্যাকগ্রাউন্ডে একই ভিডিও ফাইল পাঠানো (fallback mode ব্যাকআপ হিসেবে)
+// ★ NEW: Telegram Bot সার্ভারে ব্যাকগ্রাউন্ডে একই ভিডিও ফাইল পাঠানো (fallback mode ব্যাকআপ হিসেবে) —
+// সফল হলে file_id সেভ হয় (প্রাইভেট চ্যানেলেও কাজ করে, শুধু পাবলিক লিংকের উপর নির্ভর করে না)
 async function relayToTelegramInBackground(file,title){
+  const statusEl=document.getElementById('vTelegramStatus');
   if(!videoDeliveryCfg.relayUrl){return;} // সার্ভার সেটআপ করা না থাকলে চুপচাপ স্কিপ
+  if(statusEl)statusEl.innerHTML='⏳ Telegram-এ ব্যাকগ্রাউন্ডে পাঠানো হচ্ছে...';
   try{
     const fd=new FormData();fd.append('video',file);fd.append('title',title);
     const r=await fetch(videoDeliveryCfg.relayUrl+'/api/upload-video',{
       method:'POST',headers:{'x-admin-key':videoDeliveryCfg.relayKey||''},body:fd
     });
     const data=await r.json();
-    if(data.ok&&data.telegram&&!data.telegram.skipped&&data.telegram.telegramLink){
-      const tgInp=document.getElementById('vTelegramLink');
-      if(tgInp&&!tgInp.value.trim())tgInp.value=data.telegram.telegramLink;
-      toast('✅ Telegram ব্যাকআপ লিংকও তৈরি হয়েছে!');
+    if(data.ok&&data.telegram&&!data.telegram.skipped&&data.telegram.fileId){
+      document.getElementById('vTelegramFileId').value=data.telegram.fileId;
+      if(statusEl)statusEl.innerHTML='✅ Telegram ব্যাকআপ তৈরি হয়েছে (fallback mode-এর জন্য প্রস্তুত)';
+      toast('✅ Telegram ব্যাকআপও তৈরি হয়েছে!');
     }else if(data.ok&&data.telegram&&data.telegram.skipped){
+      if(statusEl)statusEl.innerHTML='⚠️ Telegram ব্যাকআপ হয়নি: '+esc(data.telegram.reason||'');
       console.warn('Telegram relay skipped:',data.telegram.reason);
     }
-  }catch(e){console.warn('Telegram relay failed (Cloudinary upload অক্ষত আছে):',e.message);}
+  }catch(e){
+    if(statusEl)statusEl.innerHTML='⚠️ Telegram রিলে ব্যর্থ (Cloudinary আপলোড অক্ষত আছে)';
+    console.warn('Telegram relay failed (Cloudinary upload অক্ষত আছে):',e.message);
+  }
 }
 async function handlePartFileSelect(e,i){
   const file=e.target.files[0];e.target.value='';
@@ -2188,7 +2201,7 @@ function doSaveVideo(){
     category:document.getElementById('vCat').value,
     premiumContent:document.getElementById('vPremium').checked,
     showOnHome:document.getElementById('vShowHome').checked,
-    telegramLink:document.getElementById('vTelegramLink').value.trim(),
+    telegramFileId:document.getElementById('vTelegramFileId').value.trim(),
     parts:videoParts.filter(p=>p.link).map(p=>({label:p.label,link:p.link})),
     order:orderVal
   };
@@ -2219,7 +2232,8 @@ function editVideo(key){
   document.getElementById('vCat').value=m.category;
   document.getElementById('vPremium').checked=m.premiumContent||false;
   document.getElementById('vShowHome').checked=m.showOnHome!==false;
-  document.getElementById('vTelegramLink').value=m.telegramLink||'';
+  document.getElementById('vTelegramFileId').value=m.telegramFileId||'';
+  document.getElementById('vTelegramStatus').innerHTML=m.telegramFileId?'✅ Telegram ব্যাকআপ আছে (fallback mode-এর জন্য প্রস্তুত)':'⚪ এখনো তৈরি হয়নি — Part 1 ভিডিও আবার আপলোড করলে তৈরি হবে';
   videoParts=(m.parts&&m.parts.length)?m.parts.map(p=>({label:p.label,link:p.link,uploading:false})):(m.link?[{label:'Part 1',link:m.link,uploading:false}]:[]);
   renderVideoParts();
   setv('vAdsRequired',m.adsRequired||3);
@@ -2266,7 +2280,8 @@ function resetVForm(){
   document.getElementById('vThumb').value='';onThumbUrlChange();
   document.getElementById('vDesc').value='';document.getElementById('vPremium').checked=false;
   document.getElementById('vShowHome').checked=true;
-  document.getElementById('vTelegramLink').value='';
+  document.getElementById('vTelegramFileId').value='';
+  document.getElementById('vTelegramStatus').innerHTML='⚪ এখনো তৈরি হয়নি — Part 1 ভিডিও আপলোড করুন';
   setv('vAdsRequired',3);setVAdMode('network');
   setv('vNetSelect','monetag');setv('vNetAppId','');setv('vNetTimer',15);
   directLinksState=[];
@@ -2356,7 +2371,18 @@ function saveVideoDeliveryMode(){
   const mode=document.getElementById('vdMode').value;
   const relayUrl=document.getElementById('vdRelayUrl').value.trim().replace(/\/$/,'');
   const relayKey=document.getElementById('vdRelayKey').value.trim();
-  db.ref('videoDelivery').update({mode,relayUrl,relayKey}).then(()=>toast('✅ Delivery mode saved! ('+mode+')'));
+  db.ref('videoDelivery').update({mode,relayUrl,relayKey}).then(()=>{videoDeliveryCfg={mode,relayUrl,relayKey};toast('✅ Delivery mode saved! ('+mode+')');});
+}
+async function testBotServerConnection(){
+  const el=document.getElementById('vdTestResult');
+  const relayUrl=document.getElementById('vdRelayUrl').value.trim().replace(/\/$/,'');
+  if(!relayUrl){el.innerHTML='❌ আগে Bot Server URL দিন';return;}
+  el.innerHTML='⏳ চেক করা হচ্ছে...';
+  try{
+    const r=await fetch(relayUrl+'/api/health');
+    const data=await r.json();
+    el.innerHTML=data.ok?'✅ সার্ভার চালু আছে ও রেসপন্স করছে!':'⚠️ সার্ভার রেসপন্স করেছে কিন্তু কিছু ঠিক নেই';
+  }catch(e){el.innerHTML='❌ সার্ভারে পৌঁছানো যায়নি — URL ঠিক আছে তো? সার্ভার চালু আছে তো?';}
 }
 function saveAdUnlockConfig(){
   const cfg={
