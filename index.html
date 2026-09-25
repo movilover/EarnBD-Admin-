@@ -835,20 +835,19 @@ input[type=file].img-file-inp{display:none}
           <button class="btn btn-gold" onclick="saveAdUnlockConfig()"><i class="fa fa-save"></i> Save Unlock Settings</button>
         </div>
         <div class="card" style="border-color:rgba(41,169,235,.35)">
-          <div class="ct"><i class="fa fa-exchange-alt" style="color:#29a9eb"></i> ভিডিও ডেলিভারি মোড (Cloudinary ⇄ Telegram Bot Fallback)</div>
-          <div class="info-box">📌 <b>Cloudinary Mode</b>: ভিডিও সরাসরি সাইটে প্লে হবে। <b>Telegram Mode</b>: Cloudinary ডাউন থাকলে এটা চালু করুন — তখন "Watch Now" বাটনে ক্লিক করলে ইউজার সরাসরি আপনার Telegram বটে রিডাইরেক্ট হবে, বট নিজে ভিডিও পাঠাবে (protect_content সহ — সেভ/ফরওয়ার্ড বন্ধ, ২৪ ঘণ্টা পর অটো-ডিলিট)। প্রতিটা ভিডিওর Telegram ব্যাকআপ Part 1 আপলোড করলে অটোমেটিক তৈরি হয়ে যায় (উপরে "Telegram ব্যাকআপ" স্ট্যাটাস দেখুন)।</div>
+          <div class="ct"><i class="fa fa-paper-plane" style="color:#29a9eb"></i> Telegram ভিডিও ব্যাকআপ (কোনো আলাদা সার্ভার লাগবে না)</div>
+          <div class="info-box">📌 এখানে Bot Token আর Channel ID বসালে, ভিডিও আপলোড করার সময় (Part 1) সেটা সরাসরি ব্রাউজার থেকেই আপনার Telegram চ্যানেলে ব্যাকআপ কপি হিসেবে চলে যাবে — কোনো আলাদা সার্ভার/কোডিং লাগবে না, পুরোটাই এই অ্যাডমিন প্যানেল থেকে হবে।</div>
           <div class="warn-box" style="background:rgba(245,197,24,.1);border-left:3px solid var(--gold);border-radius:8px;padding:10px 12px;font-size:10.5px;line-height:1.7;margin-bottom:12px">
-            ⚠️ <b>Bot Token, Channel ID, Bot Username</b> — এই ৩টা স্পর্শকাতর তথ্য নিরাপত্তার কারণে এই অ্যাডমিন প্যানেলে (ব্রাউজারে) রাখা হয় না — এগুলো বসাতে হবে আপনার ব্যাকএন্ড বট-সার্ভারের <code>.env</code> ফাইলে (সার্ভারটা ডেপ্লয় করার সময়)। নিচে শুধু সেই সার্ভারের <b>URL</b> আর তার নিজস্ব <b>Admin API Key</b> বসাবেন (এটা ব্রাউজারে রাখা নিরাপদ, কারণ এটা শুধু আপনার সার্ভারে অথেনটিকেট করার জন্য ব্যবহার হয়)।
+            ℹ️ এই মুহূর্তে এটা শুধু <b>ব্যাকআপ কপি</b> — ইউজাররা ভিডিও সবসময় Cloudinary থেকেই দেখবে (স্বাভাবিক, দ্রুত)। ভিডিও সরাসরি বট দিয়ে ইউজারদের কাছে পাঠানো (Watch Now চাপলে বট থেকে ভিডিও আসা, ২৪ ঘণ্টা পর অটো-ডিলিট) — এই পুরো ফিচারটার জন্য একটা ছোট প্রোগ্রাম ২৪/৭ চালু রাখা লাগে, যেটা এখন সেটআপ করা হয়নি। পরে চাইলে এটা যোগ করা যাবে।<br><br>
+            ⚠️ Bot Token এখানে ব্রাউজারে সেভ থাকছে (নিরাপত্তা পরে দেখবেন বলেছেন, তাই এভাবেই রাখা হলো) — শুধু মাথায় রাখবেন, এই অ্যাডমিন প্যানেলের লিংক অন্য কারো সাথে শেয়ার করবেন না।
           </div>
-          <label class="slbl">মোড</label>
-          <select class="inp" id="vdMode"><option value="cloudinary">Cloudinary Mode (Normal)</option><option value="telegram">Telegram Mode (Fallback)</option></select>
-          <label class="slbl">Bot Server URL (যেখানে server/ ফোল্ডারটা ডেপ্লয় করেছেন)</label>
-          <input class="inp" id="vdRelayUrl" placeholder="https://your-bot-server.onrender.com">
-          <label class="slbl">Bot Server-এর Admin API Key</label>
-          <input class="inp" id="vdRelayKey" placeholder="সার্ভারের .env-এ ADMIN_API_KEY যা দিয়েছেন সেটাই" type="password">
-          <button class="btn btn-blue" onclick="saveVideoDeliveryMode()"><i class="fa fa-save"></i> Save Delivery Mode</button>
-          <button class="btn" style="background:var(--bg3);margin-top:8px" onclick="testBotServerConnection()"><i class="fa fa-plug"></i> কানেকশন টেস্ট করুন</button>
-          <div id="vdTestResult" style="font-size:10.5px;margin-top:8px"></div>
+          <label class="slbl">Telegram Bot Token (@BotFather থেকে)</label>
+          <input class="inp" id="tgBotTokenInp" type="password" placeholder="123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+          <label class="slbl">Private Channel ID (বটকে ঐ চ্যানেলে Admin বানাতে হবে)</label>
+          <input class="inp" id="tgChannelIdInp" placeholder="-1001234567890">
+          <button class="btn btn-blue" onclick="saveTelegramBotConfig()"><i class="fa fa-save"></i> Save করুন</button>
+          <button class="btn" style="background:var(--bg3);margin-top:8px" onclick="testTelegramBotConfig()"><i class="fa fa-plug"></i> টেস্ট করুন (বট ঠিকমতো কানেক্টেড কিনা)</button>
+          <div id="tgTestResult" style="font-size:10.5px;margin-top:8px"></div>
         </div>
         <div class="card" style="margin-bottom:0;border-color:rgba(229,0,0,.25)">
           <div class="ct"><i class="fa fa-exclamation-triangle" style="color:var(--orange)"></i> Wrong Click Penalty</div>
@@ -1141,7 +1140,7 @@ let cronChatInterval=null,cronLog=JSON.parse(localStorage.getItem('adminCronLog'
 
 // ─── CLOUDINARY + MULTI-PART VIDEO STATE ─────────────────────
 let cldConfig={cloudName:'',uploadPreset:'',folder:''};
-let videoDeliveryCfg={};
+let telegramBotCfg={};
 let videoParts=[];
 const CHUNK_SIZE=6*1024*1024;
 
@@ -1254,7 +1253,7 @@ function initAdmin(){
     if(!Object.keys(cmFeatures).length)seedDefaultFeatures();
     else refreshCmStats();
     cldConfig=d.cloudinaryConfig||{cloudName:'',uploadPreset:'',folder:''};
-    videoDeliveryCfg=d.videoDelivery||{};
+    telegramBotCfg=d.telegramBotConfig||{};
     setv('cldCloudName',cldConfig.cloudName||'');
     setv('cldUploadPreset',cldConfig.uploadPreset||'');
     setv('cldFolder',cldConfig.folder||'');
@@ -1965,29 +1964,35 @@ async function showOversizeGuide(part,file){
   alert(msg);
 }
 
-// ★ NEW: Telegram Bot সার্ভারে ব্যাকগ্রাউন্ডে একই ভিডিও ফাইল পাঠানো (fallback mode ব্যাকআপ হিসেবে) —
-// সফল হলে file_id সেভ হয় (প্রাইভেট চ্যানেলেও কাজ করে, শুধু পাবলিক লিংকের উপর নির্ভর করে না)
+// ★ NEW: ব্রাউজার থেকে সরাসরি Telegram Bot API কল করে ভিডিওটা ব্যাকআপ চ্যানেলে পাঠানো —
+// কোনো আলাদা সার্ভার লাগে না, সরাসরি অ্যাডমিন প্যানেল থেকেই হয়
 async function relayToTelegramInBackground(file,title){
   const statusEl=document.getElementById('vTelegramStatus');
-  if(!videoDeliveryCfg.relayUrl){return;} // সার্ভার সেটআপ করা না থাকলে চুপচাপ স্কিপ
+  if(!telegramBotCfg.botToken||!telegramBotCfg.channelId){return;} // সেটআপ করা না থাকলে চুপচাপ স্কিপ
   if(statusEl)statusEl.innerHTML='⏳ Telegram-এ ব্যাকগ্রাউন্ডে পাঠানো হচ্ছে...';
   try{
-    const fd=new FormData();fd.append('video',file);fd.append('title',title);
-    const r=await fetch(videoDeliveryCfg.relayUrl+'/api/upload-video',{
-      method:'POST',headers:{'x-admin-key':videoDeliveryCfg.relayKey||''},body:fd
-    });
+    const fd=new FormData();
+    fd.append('chat_id',telegramBotCfg.channelId);
+    fd.append('caption',title);
+    fd.append('supports_streaming','true');
+    fd.append('video',file,(title||'video')+'.mp4');
+    const r=await fetch(`https://api.telegram.org/bot${telegramBotCfg.botToken}/sendVideo`,{method:'POST',body:fd});
     const data=await r.json();
-    if(data.ok&&data.telegram&&!data.telegram.skipped&&data.telegram.fileId){
-      document.getElementById('vTelegramFileId').value=data.telegram.fileId;
-      if(statusEl)statusEl.innerHTML='✅ Telegram ব্যাকআপ তৈরি হয়েছে (fallback mode-এর জন্য প্রস্তুত)';
-      toast('✅ Telegram ব্যাকআপও তৈরি হয়েছে!');
-    }else if(data.ok&&data.telegram&&data.telegram.skipped){
-      if(statusEl)statusEl.innerHTML='⚠️ Telegram ব্যাকআপ হয়নি: '+esc(data.telegram.reason||'');
-      console.warn('Telegram relay skipped:',data.telegram.reason);
+    if(data.ok){
+      const fileId=data.result.video?.file_id||data.result.document?.file_id;
+      if(fileId){
+        document.getElementById('vTelegramFileId').value=fileId;
+        if(statusEl)statusEl.innerHTML='✅ Telegram ব্যাকআপ তৈরি হয়েছে';
+        toast('✅ Telegram ব্যাকআপও তৈরি হয়েছে!');
+      }
+    }else{
+      const reason=data.description||'অজানা এরর';
+      if(statusEl)statusEl.innerHTML='⚠️ Telegram ব্যাকআপ হয়নি: '+esc(reason)+(reason.match(/too large|413/i)?' (৫০ এমবির বেশি ফাইল সাধারণ Bot API-তে যায় না)':'');
+      console.warn('Telegram sendVideo failed:',reason);
     }
   }catch(e){
-    if(statusEl)statusEl.innerHTML='⚠️ Telegram রিলে ব্যর্থ (Cloudinary আপলোড অক্ষত আছে)';
-    console.warn('Telegram relay failed (Cloudinary upload অক্ষত আছে):',e.message);
+    if(statusEl)statusEl.innerHTML='⚠️ Telegram ব্যাকআপ ব্যর্থ (Cloudinary আপলোড অক্ষত আছে): '+esc(e.message);
+    console.warn('Telegram sendVideo error:',e.message);
   }
 }
 async function handlePartFileSelect(e,i){
@@ -2367,22 +2372,22 @@ function updateTimerPreview(){const sec=+document.getElementById('monetagTimer')
 // ★ FIX: এই গ্লোবাল সেটিং আগে অ্যাডমিন প্যানেলে কোথাও সেভ করার অপশনই ছিল না — user.html কোড
 // 'adUnlockConfig' নোড থেকে network/zoneId/timer পড়তো, কিন্তু সেই নোডে কিছু লেখার কোনো ফর্ম ছিল না।
 // ফলে গ্লোবাল Zone ID সবসময় খালি থাকতো আর কোনো ভিডিওতে আলাদা করে Zone ID না দিলে অ্যাড একদমই লোড হতো না।
-function saveVideoDeliveryMode(){
-  const mode=document.getElementById('vdMode').value;
-  const relayUrl=document.getElementById('vdRelayUrl').value.trim().replace(/\/$/,'');
-  const relayKey=document.getElementById('vdRelayKey').value.trim();
-  db.ref('videoDelivery').update({mode,relayUrl,relayKey}).then(()=>{videoDeliveryCfg={mode,relayUrl,relayKey};toast('✅ Delivery mode saved! ('+mode+')');});
+function saveTelegramBotConfig(){
+  const botToken=document.getElementById('tgBotTokenInp').value.trim();
+  const channelId=document.getElementById('tgChannelIdInp').value.trim();
+  db.ref('telegramBotConfig').set({botToken,channelId}).then(()=>{telegramBotCfg={botToken,channelId};toast('✅ Telegram বট সেটিংস সেভ হয়েছে!');});
 }
-async function testBotServerConnection(){
-  const el=document.getElementById('vdTestResult');
-  const relayUrl=document.getElementById('vdRelayUrl').value.trim().replace(/\/$/,'');
-  if(!relayUrl){el.innerHTML='❌ আগে Bot Server URL দিন';return;}
+async function testTelegramBotConfig(){
+  const el=document.getElementById('tgTestResult');
+  const botToken=document.getElementById('tgBotTokenInp').value.trim();
+  if(!botToken){el.innerHTML='❌ আগে Bot Token দিন';return;}
   el.innerHTML='⏳ চেক করা হচ্ছে...';
   try{
-    const r=await fetch(relayUrl+'/api/health');
+    const r=await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
     const data=await r.json();
-    el.innerHTML=data.ok?'✅ সার্ভার চালু আছে ও রেসপন্স করছে!':'⚠️ সার্ভার রেসপন্স করেছে কিন্তু কিছু ঠিক নেই';
-  }catch(e){el.innerHTML='❌ সার্ভারে পৌঁছানো যায়নি — URL ঠিক আছে তো? সার্ভার চালু আছে তো?';}
+    if(data.ok)el.innerHTML=`✅ বট কানেক্টেড: @${esc(data.result.username)}`;
+    else el.innerHTML='❌ ভুল Bot Token — আবার চেক করুন';
+  }catch(e){el.innerHTML='❌ টেস্ট করতে সমস্যা হয়েছে (ব্রাউজার থেকে Telegram-এ পৌঁছানো যাচ্ছে না — নেটওয়ার্ক/CORS ইস্যু হতে পারে)';}
 }
 function saveAdUnlockConfig(){
   const cfg={
@@ -2548,7 +2553,7 @@ function saveSocialLinks(){['facebook','youtube','instagram'].forEach(s=>db.ref(
 function saveWalletLogo(method){const url=document.getElementById('logo-'+method).value.trim();if(!url){toast('URL দিন!');return;}db.ref('paymentLogos/'+method).set(url).then(()=>{const prev=document.getElementById('prev-'+method);prev.src=url;prev.style.display='block';toast('✅ Saved!');});}
 function saveAllWalletLogos(){['bkash','nagad','rocket','bank'].forEach(m=>{const url=document.getElementById('logo-'+m).value.trim();if(url)db.ref('paymentLogos/'+m).set(url);});toast('✅ All logos saved!');}
 
-function loadAllSettings(){db.ref('/').once('value',snap=>{const d=snap.val()||{};setv('tgLinkInp',d.telegramLink||'');setv('noticeBarInp',d.notice||'');setv('taskTimerInp',d.taskTimer||15);setv('reqRefsInp',d.requireReferrals||20);setv('minWdInp',d.minWithdraw||2000);setv('pointRateInp',d.pointRate||0.1);setv('dailyBonusInp',d.dailyBonus||25);setv('bkashNum',d.bkashNum||'');setv('nagadNum',d.nagadNum||'');setv('rocketNum',d.rocketNum||'');setv('pmNote',d.pmNote||'');setv('facebookLink',d.facebookLink||'');setv('youtubeLink',d.youtubeLink||'');setv('instagramLink',d.instagramLink||'');setv('botTokenInp',d.botToken||'');setv('adminUidInp',d.adminUid||'');setv('gen1Rate',d.gen1Rate||10);setv('gen2Rate',d.gen2Rate||5);setv('gen3Rate',d.gen3Rate||2);document.getElementById('g1RateDisplay').innerText=(d.gen1Rate||10)+'%';document.getElementById('g2RateDisplay').innerText=(d.gen2Rate||5)+'%';document.getElementById('g3RateDisplay').innerText=(d.gen3Rate||2)+'%';const logos=d.paymentLogos||{};['bkash','nagad','rocket','bank'].forEach(m=>{if(logos[m]){setv('logo-'+m,logos[m]);const prev=document.getElementById('prev-'+m);if(prev){prev.src=logos[m];prev.style.display='block';}}});setv('dailySpinsInp',d.dailySpins||3);setv('spinWaitInp',d.spinWaitTime||15);setv('spinAdLinkInp',d.spinAdLink||'');if(d.popupNotif){const p=d.popupNotif;setv('popupId',p.id||'');setv('popupIcon',p.icon||'');setv('popupTitle',p.title||'');setv('popupBody',p.body||'');setv('popupBtnText',p.btnText||'');setv('popupBtnLink',p.btnLink||'');const pe=document.getElementById('popupEnabled');if(pe)pe.checked=p.enabled!==false;}const bt=d.bannerTasks||{};if(bt.monetag){setv('monetagAppId',bt.monetag.appId||'');setv('monetagLink',bt.monetag.link||'');setv('monetagReward',bt.monetag.reward||20);setv('monetagTimer',bt.monetag.timer||15);setv('monetagDailyLimit',bt.monetag.dailyLimit||15);setv('monetagMaxWrong',bt.monetag.maxWrongClicks||3);const me=document.getElementById('monetagEnabled');if(me)me.checked=bt.monetag.enabled!==false;document.getElementById('timerPreviewCircle').innerText=(bt.monetag.timer||15)+'s';}if(bt.gigapub){setv('gigapubAppId',bt.gigapub.appId||'');setv('gigapubLink',bt.gigapub.link||'');setv('gigapubReward',bt.gigapub.reward||25);setv('gigapubTimer',bt.gigapub.timer||15);setv('gigapubDailyLimit',bt.gigapub.dailyLimit||15);setv('gigapubMaxWrong',bt.gigapub.maxWrongClicks||3);const ge=document.getElementById('gigapubEnabled');if(ge)ge.checked=bt.gigapub.enabled!==false;}const wcs=d.wrongClickSettings||{};setv('wrongClickWarnMsg',wcs.warnMsg||'');setv('banWarningMsg',wcs.banMsg||'');const wcab=document.getElementById('wrongClickAutoBan');if(wcab)wcab.checked=wcs.autoBan!==false;const ss=d.spamSettings||{};setv('spamBanMsg',ss.banMsg||'');setv('spamPatternsInp',(ss.patterns||[]).join(','));const sab=document.getElementById('spamAutoBan');if(sab)sab.checked=ss.autoBan!==false;const se=document.getElementById('spinEnabled');if(se)se.checked=d.spinEnabled!==false;const nb=document.getElementById('noticeBarVisible');if(nb)nb.checked=d.noticeBarVisible!==false;if(d.taskNotice){setv('noticeIcon',d.taskNotice.icon||'');setv('noticeTitle',d.taskNotice.title||'');setv('noticeMsg',d.taskNotice.msg||'');}if(d.sitePreviewUrl)setv('previewUrl',d.sitePreviewUrl);const auc=d.adUnlockConfig||{};setv('uAdNetwork',auc.network||'monetag');setv('uAdZoneId',auc.networkAppId||'');setv('uAdTimer',auc.adTimer||15);setv('uAdDefaultReq',auc.defaultAdsRequired||2);setv('uAdUnlockHours',auc.unlockHours||0);setv('uAdDailyLimit',auc.adDailyLimit||15);const vd=d.videoDelivery||{};setv('vdMode',vd.mode||'cloudinary');setv('vdRelayUrl',vd.relayUrl||'');setv('vdRelayKey',vd.relayKey||'');});}
+function loadAllSettings(){db.ref('/').once('value',snap=>{const d=snap.val()||{};setv('tgLinkInp',d.telegramLink||'');setv('noticeBarInp',d.notice||'');setv('taskTimerInp',d.taskTimer||15);setv('reqRefsInp',d.requireReferrals||20);setv('minWdInp',d.minWithdraw||2000);setv('pointRateInp',d.pointRate||0.1);setv('dailyBonusInp',d.dailyBonus||25);setv('bkashNum',d.bkashNum||'');setv('nagadNum',d.nagadNum||'');setv('rocketNum',d.rocketNum||'');setv('pmNote',d.pmNote||'');setv('facebookLink',d.facebookLink||'');setv('youtubeLink',d.youtubeLink||'');setv('instagramLink',d.instagramLink||'');setv('botTokenInp',d.botToken||'');setv('adminUidInp',d.adminUid||'');setv('gen1Rate',d.gen1Rate||10);setv('gen2Rate',d.gen2Rate||5);setv('gen3Rate',d.gen3Rate||2);document.getElementById('g1RateDisplay').innerText=(d.gen1Rate||10)+'%';document.getElementById('g2RateDisplay').innerText=(d.gen2Rate||5)+'%';document.getElementById('g3RateDisplay').innerText=(d.gen3Rate||2)+'%';const logos=d.paymentLogos||{};['bkash','nagad','rocket','bank'].forEach(m=>{if(logos[m]){setv('logo-'+m,logos[m]);const prev=document.getElementById('prev-'+m);if(prev){prev.src=logos[m];prev.style.display='block';}}});setv('dailySpinsInp',d.dailySpins||3);setv('spinWaitInp',d.spinWaitTime||15);setv('spinAdLinkInp',d.spinAdLink||'');if(d.popupNotif){const p=d.popupNotif;setv('popupId',p.id||'');setv('popupIcon',p.icon||'');setv('popupTitle',p.title||'');setv('popupBody',p.body||'');setv('popupBtnText',p.btnText||'');setv('popupBtnLink',p.btnLink||'');const pe=document.getElementById('popupEnabled');if(pe)pe.checked=p.enabled!==false;}const bt=d.bannerTasks||{};if(bt.monetag){setv('monetagAppId',bt.monetag.appId||'');setv('monetagLink',bt.monetag.link||'');setv('monetagReward',bt.monetag.reward||20);setv('monetagTimer',bt.monetag.timer||15);setv('monetagDailyLimit',bt.monetag.dailyLimit||15);setv('monetagMaxWrong',bt.monetag.maxWrongClicks||3);const me=document.getElementById('monetagEnabled');if(me)me.checked=bt.monetag.enabled!==false;document.getElementById('timerPreviewCircle').innerText=(bt.monetag.timer||15)+'s';}if(bt.gigapub){setv('gigapubAppId',bt.gigapub.appId||'');setv('gigapubLink',bt.gigapub.link||'');setv('gigapubReward',bt.gigapub.reward||25);setv('gigapubTimer',bt.gigapub.timer||15);setv('gigapubDailyLimit',bt.gigapub.dailyLimit||15);setv('gigapubMaxWrong',bt.gigapub.maxWrongClicks||3);const ge=document.getElementById('gigapubEnabled');if(ge)ge.checked=bt.gigapub.enabled!==false;}const wcs=d.wrongClickSettings||{};setv('wrongClickWarnMsg',wcs.warnMsg||'');setv('banWarningMsg',wcs.banMsg||'');const wcab=document.getElementById('wrongClickAutoBan');if(wcab)wcab.checked=wcs.autoBan!==false;const ss=d.spamSettings||{};setv('spamBanMsg',ss.banMsg||'');setv('spamPatternsInp',(ss.patterns||[]).join(','));const sab=document.getElementById('spamAutoBan');if(sab)sab.checked=ss.autoBan!==false;const se=document.getElementById('spinEnabled');if(se)se.checked=d.spinEnabled!==false;const nb=document.getElementById('noticeBarVisible');if(nb)nb.checked=d.noticeBarVisible!==false;if(d.taskNotice){setv('noticeIcon',d.taskNotice.icon||'');setv('noticeTitle',d.taskNotice.title||'');setv('noticeMsg',d.taskNotice.msg||'');}if(d.sitePreviewUrl)setv('previewUrl',d.sitePreviewUrl);const auc=d.adUnlockConfig||{};setv('uAdNetwork',auc.network||'monetag');setv('uAdZoneId',auc.networkAppId||'');setv('uAdTimer',auc.adTimer||15);setv('uAdDefaultReq',auc.defaultAdsRequired||2);setv('uAdUnlockHours',auc.unlockHours||0);setv('uAdDailyLimit',auc.adDailyLimit||15);const tgc=d.telegramBotConfig||{};setv('tgBotTokenInp',tgc.botToken||'');setv('tgChannelIdInp',tgc.channelId||'');});}
 
 // ─── HELPERS ─────────────────────────────────────────────────
 function setv(id,val){const el=document.getElementById(id);if(el)el.value=val;}
