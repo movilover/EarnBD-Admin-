@@ -402,7 +402,7 @@ input[type=file].img-file-inp{display:none}
     <div class="ntab on" data-tab="dashboard"><i class="fa fa-tachometer-alt"></i> Dashboard</div>
     <div class="ntab" data-tab="codemanager"><i class="fa fa-code"></i> Code Manager</div>
     <div class="ntab" data-tab="livepreview"><i class="fa fa-eye"></i> Live Preview</div>
-    <div class="ntab" data-tab="cloudinary"><i class="fa fa-cloud"></i> Cloudinary</div>
+    <div class="ntab" data-tab="storage"><i class="fa fa-cloud"></i> Storage Setup</div>
     <div class="ntab" data-tab="memberchat"><i class="fa fa-comments"></i> Member Chat</div>
     <div class="ntab" data-tab="videos"><i class="fa fa-film"></i> Videos</div>
     <div class="ntab" data-tab="categories"><i class="fa fa-folder"></i> Categories</div>
@@ -520,20 +520,27 @@ input[type=file].img-file-inp{display:none}
       </div>
     </div>
 
-    <!-- CLOUDINARY SETUP -->
-    <div class="tp" id="tab-cloudinary">
-      <div class="card" style="border-color:rgba(6,182,212,.35)">
-        <div class="ct"><i class="fa fa-cloud"></i> Cloudinary API Setup</div>
-        <div class="info-box-blue">☁️ এখানে Cloudinary অ্যাকাউন্টের Cloud Name ও Unsigned Upload Preset বসিয়ে Save করলে গ্যালারি থেকে সরাসরি ভিডিও/থাম্বনেইল আপলোড চালু হয়ে যাবে।<br><br><b>যেভাবে তথ্য পাবেন:</b><br>১) Cloudinary Dashboard-এ লগইন করুন — উপরে <b>Cloud Name</b> দেখতে পাবেন<br>২) Settings ⚙️ → Upload → Add upload preset<br>৩) Signing Mode অবশ্যই <b>Unsigned</b> সিলেক্ট করে Save করুন</div>
-        <div id="cldStatusBox"></div>
-        <label class="slbl">Cloud Name *</label>
-        <input class="inp" id="cldCloudName" placeholder="যেমন: dxxxxxx123">
-        <label class="slbl">Unsigned Upload Preset *</label>
-        <input class="inp" id="cldUploadPreset" placeholder="যেমন: movielover_unsigned">
-        <label class="slbl">Folder (ঐচ্ছিক)</label>
-        <input class="inp" id="cldFolder" placeholder="যেমন: movielover_videos">
-        <button class="btn" style="background:linear-gradient(90deg,#06b6d4,#0e7490);color:#fff" onclick="saveCloudinaryConfig()"><i class="fa fa-save"></i> Cloudinary সংরক্ষণ করুন</button>
-        <button class="btn btn-gray" onclick="testCloudinaryConfig()"><i class="fa fa-vial"></i> সংযোগ পরীক্ষা করুন</button>
+    <!-- STORAGE SETUP (ImgBB + Telegram Bot Server) -->
+    <div class="tp" id="tab-storage">
+      <div class="card" style="border-color:rgba(255,140,0,.35)">
+        <div class="ct"><i class="fa fa-image"></i> ImgBB Setup (থাম্বনেইল/পোস্টার আপলোডের জন্য)</div>
+        <div class="info-box-blue">🖼️ থাম্বনেইল ছবি সরাসরি ব্রাউজার থেকে ImgBB-তে আপলোড হবে। <b>যেভাবে API Key পাবেন:</b><br>১) <a href="https://api.imgbb.com/" target="_blank" style="color:#4da3ff">api.imgbb.com</a>-এ যান, ফ্রি অ্যাকাউন্ট বানান<br>২) লগইন করার পর ঐ পেজেই আপনার <b>API Key</b> দেখতে পাবেন — কপি করে নিচে বসান</div>
+        <div id="imgbbStatusBox"></div>
+        <label class="slbl">ImgBB API Key *</label>
+        <input class="inp" id="imgbbApiKey" type="password" placeholder="যেমন: a1b2c3d4e5f6...">
+        <button class="btn" style="background:linear-gradient(90deg,#ff8c00,#e65100);color:#fff" onclick="saveImgbbConfig()"><i class="fa fa-save"></i> ImgBB সংরক্ষণ করুন</button>
+        <button class="btn btn-gray" onclick="testImgbbConfig()"><i class="fa fa-vial"></i> সংযোগ পরীক্ষা করুন</button>
+      </div>
+      <div class="card" style="border-color:rgba(41,169,235,.35);margin-bottom:0">
+        <div class="ct"><i class="fa fa-paper-plane" style="color:#29a9eb"></i> Telegram Bot Server (ভিডিও আপলোড ও ডেলিভারির জন্য)</div>
+        <div class="info-box-blue">🎬 ভিডিও এখন সম্পূর্ণভাবে Telegram বটের মাধ্যমে চলবে — আপলোড, স্টোরেজ, এবং ইউজারদের কাছে ডেলিভারি (২৪ ঘণ্টা পর অটো-ডিলিট)। এর জন্য একটা ছোট ব্যাকএন্ড সার্ভার (Node.js) চালু রাখতে হয় — আমি সেই সম্পূর্ণ কোড দিয়ে দিয়েছি, শুধু ডেপ্লয় করে নিচে তার URL ও Key বসাবেন।</div>
+        <div id="botServerStatusBox"></div>
+        <label class="slbl">Bot Server URL *</label>
+        <input class="inp" id="botServerUrl" placeholder="https://your-bot-server.onrender.com">
+        <label class="slbl">Bot Server-এর Admin API Key *</label>
+        <input class="inp" id="botServerKey" type="password" placeholder="সার্ভারের .env-এ ADMIN_API_KEY যা দিয়েছেন">
+        <button class="btn btn-blue" onclick="saveBotServerConfig()"><i class="fa fa-save"></i> সংরক্ষণ করুন</button>
+        <button class="btn btn-gray" onclick="testBotServerConfig()"><i class="fa fa-vial"></i> সংযোগ পরীক্ষা করুন</button>
       </div>
     </div>
 
@@ -834,21 +841,6 @@ input[type=file].img-file-inp{display:none}
           </div>
           <button class="btn btn-gold" onclick="saveAdUnlockConfig()"><i class="fa fa-save"></i> Save Unlock Settings</button>
         </div>
-        <div class="card" style="border-color:rgba(41,169,235,.35)">
-          <div class="ct"><i class="fa fa-paper-plane" style="color:#29a9eb"></i> Telegram ভিডিও ব্যাকআপ (কোনো আলাদা সার্ভার লাগবে না)</div>
-          <div class="info-box">📌 এখানে Bot Token আর Channel ID বসালে, ভিডিও আপলোড করার সময় (Part 1) সেটা সরাসরি ব্রাউজার থেকেই আপনার Telegram চ্যানেলে ব্যাকআপ কপি হিসেবে চলে যাবে — কোনো আলাদা সার্ভার/কোডিং লাগবে না, পুরোটাই এই অ্যাডমিন প্যানেল থেকে হবে।</div>
-          <div class="warn-box" style="background:rgba(245,197,24,.1);border-left:3px solid var(--gold);border-radius:8px;padding:10px 12px;font-size:10.5px;line-height:1.7;margin-bottom:12px">
-            ℹ️ এই মুহূর্তে এটা শুধু <b>ব্যাকআপ কপি</b> — ইউজাররা ভিডিও সবসময় Cloudinary থেকেই দেখবে (স্বাভাবিক, দ্রুত)। ভিডিও সরাসরি বট দিয়ে ইউজারদের কাছে পাঠানো (Watch Now চাপলে বট থেকে ভিডিও আসা, ২৪ ঘণ্টা পর অটো-ডিলিট) — এই পুরো ফিচারটার জন্য একটা ছোট প্রোগ্রাম ২৪/৭ চালু রাখা লাগে, যেটা এখন সেটআপ করা হয়নি। পরে চাইলে এটা যোগ করা যাবে।<br><br>
-            ⚠️ Bot Token এখানে ব্রাউজারে সেভ থাকছে (নিরাপত্তা পরে দেখবেন বলেছেন, তাই এভাবেই রাখা হলো) — শুধু মাথায় রাখবেন, এই অ্যাডমিন প্যানেলের লিংক অন্য কারো সাথে শেয়ার করবেন না।
-          </div>
-          <label class="slbl">Telegram Bot Token (@BotFather থেকে)</label>
-          <input class="inp" id="tgBotTokenInp" type="password" placeholder="123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
-          <label class="slbl">Private Channel ID (বটকে ঐ চ্যানেলে Admin বানাতে হবে)</label>
-          <input class="inp" id="tgChannelIdInp" placeholder="-1001234567890">
-          <button class="btn btn-blue" onclick="saveTelegramBotConfig()"><i class="fa fa-save"></i> Save করুন</button>
-          <button class="btn" style="background:var(--bg3);margin-top:8px" onclick="testTelegramBotConfig()"><i class="fa fa-plug"></i> টেস্ট করুন (বট ঠিকমতো কানেক্টেড কিনা)</button>
-          <div id="tgTestResult" style="font-size:10.5px;margin-top:8px"></div>
-        </div>
         <div class="card" style="margin-bottom:0;border-color:rgba(229,0,0,.25)">
           <div class="ct"><i class="fa fa-exclamation-triangle" style="color:var(--orange)"></i> Wrong Click Penalty</div>
           <textarea class="inp" id="wrongClickWarnMsg" placeholder="Warning message..."></textarea>
@@ -1138,11 +1130,10 @@ let spamAlerts={},memberChats={};
 let currentChatReplyUid=null,currentChatListener=null;
 let cronChatInterval=null,cronLog=JSON.parse(localStorage.getItem('adminCronLog')||'[]');
 
-// ─── CLOUDINARY + MULTI-PART VIDEO STATE ─────────────────────
-let cldConfig={cloudName:'',uploadPreset:'',folder:''};
-let telegramBotCfg={};
+// ─── STORAGE CONFIG + MULTI-PART VIDEO STATE ─────────────────────
+let imgbbCfg={apiKey:''};
+let botServerCfg={relayUrl:'',relayKey:''};
 let videoParts=[];
-const CHUNK_SIZE=6*1024*1024;
 
 // ─── PER-VIDEO AD UNLOCK STATE ────────────────────────────────
 let curVAdMode='network';
@@ -1252,11 +1243,11 @@ function initAdmin(){
     cmFeatures=d.codeFeatures||{};
     if(!Object.keys(cmFeatures).length)seedDefaultFeatures();
     else refreshCmStats();
-    cldConfig=d.cloudinaryConfig||{cloudName:'',uploadPreset:'',folder:''};
-    telegramBotCfg=d.telegramBotConfig||{};
-    setv('cldCloudName',cldConfig.cloudName||'');
-    setv('cldUploadPreset',cldConfig.uploadPreset||'');
-    setv('cldFolder',cldConfig.folder||'');
+    imgbbCfg=d.imgbbConfig||{apiKey:''};
+    botServerCfg=d.botServerConfig||{relayUrl:'',relayKey:''};
+    setv('imgbbApiKey',imgbbCfg.apiKey||'');
+    setv('botServerUrl',botServerCfg.relayUrl||'');
+    setv('botServerKey',botServerCfg.relayKey||'');
     renderCldStatusBox();
     const active=document.querySelector('.tp.on')?.id?.replace('tab-','');
     if(active)renderTab(active);
@@ -1296,7 +1287,7 @@ function renderTab(name){
   if(name==='dashboard'){updateStats();renderDashWd();renderDashSubs();renderDashSpam();renderDashMsgs();}
   if(name==='codemanager')renderFeatureGrid('');
   if(name==='livepreview'){}
-  if(name==='cloudinary')renderCldStatusBox();
+  if(name==='storage'){renderImgbbStatusBox();renderBotServerStatusBox();}
   if(name==='memberchat')renderMemberChats('');
   if(name==='videos'){renderVideoList();renderUploadWarning();}
   if(name==='categories')renderCats();
@@ -1538,110 +1529,103 @@ function loadPreview(){
 function openExternal(){const url=document.getElementById('previewUrl').value.trim();if(url)window.open(url,'_blank');}
 function savePreviewUrl(){const url=document.getElementById('previewUrl').value.trim();if(!url)return;db.ref('sitePreviewUrl').set(url).then(()=>toast('✅ URL সংরক্ষিত!'));}
 
-// ─── CLOUDINARY CONFIG + UPLOAD ENGINE ────────────────────────
-function isCldReady(){return !!(cldConfig.cloudName&&cldConfig.uploadPreset);}
+// ─── ImgBB + Bot Server UPLOAD ENGINE ────────────────────────
+function isImgbbReady(){return !!imgbbCfg.apiKey;}
+function isBotServerReady(){return !!(botServerCfg.relayUrl&&botServerCfg.relayKey);}
 
-function saveCloudinaryConfig(){
-  const cloudName=document.getElementById('cldCloudName').value.trim();
-  const uploadPreset=document.getElementById('cldUploadPreset').value.trim();
-  const folder=document.getElementById('cldFolder').value.trim();
-  if(!cloudName||!uploadPreset){toast('❌ Cloud Name ও Upload Preset দুটোই দিতে হবে!');return;}
-  db.ref('cloudinaryConfig').set({cloudName,uploadPreset,folder,updatedAt:Date.now()}).then(()=>{
-    toast('✅ Cloudinary সংরক্ষণ হয়েছে!');
+function saveImgbbConfig(){
+  const apiKey=document.getElementById('imgbbApiKey').value.trim();
+  if(!apiKey){toast('❌ ImgBB API Key দিতে হবে!');return;}
+  db.ref('imgbbConfig').set({apiKey,updatedAt:Date.now()}).then(()=>{
+    imgbbCfg={apiKey};toast('✅ ImgBB সংরক্ষণ হয়েছে!');renderImgbbStatusBox();
   }).catch(err=>toast('❌ Firebase-এ সেভ ব্যর্থ: '+err.message));
 }
-
-async function testCloudinaryConfig(){
-  const cloudName=document.getElementById('cldCloudName').value.trim();
-  const uploadPreset=document.getElementById('cldUploadPreset').value.trim();
-  if(!cloudName||!uploadPreset){toast('❌ আগে Cloud Name ও Upload Preset বসান!');return;}
+async function testImgbbConfig(){
+  const apiKey=document.getElementById('imgbbApiKey').value.trim();
+  if(!apiKey){toast('❌ আগে API Key বসান!');return;}
   toast('🔄 পরীক্ষা করা হচ্ছে...');
   try{
     const testBlob=await(await fetch('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=')).blob();
-    const fd=new FormData();fd.append('file',testBlob,'test.png');fd.append('upload_preset',uploadPreset);
-    const r=await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,{method:'POST',body:fd});
+    const fd=new FormData();fd.append('image',testBlob,'test.png');
+    const r=await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`,{method:'POST',body:fd});
     const data=await r.json();
-    if(data.secure_url)toast('✅ সংযোগ সফল!');
-    else{
-      const msg=data.error?.message||'Unknown error';
-      if(/signed|signature|api_key/i.test(msg))toast('❌ ব্যর্থ: এই Preset "Signed" মোডে আছে — "Unsigned" করে Save করুন।');
-      else if(/whitelist|not allowed|preset not found/i.test(msg))toast('❌ ব্যর্থ: Preset পাওয়া যায়নি বা Cloud Name ভুল।');
-      else toast('❌ সংযোগ ব্যর্থ: '+msg);
-    }
+    if(data.success)toast('✅ সংযোগ সফল!');
+    else toast('❌ ব্যর্থ: '+(data.error?.message||'ভুল API Key'));
   }catch(e){toast('❌ সংযোগ ব্যর্থ: '+e.message);}
 }
+function renderImgbbStatusBox(){
+  const box=document.getElementById('imgbbStatusBox');if(!box)return;
+  box.innerHTML=isImgbbReady()
+    ?`<div class="cld-status cld-ok"><i class="fa fa-check-circle"></i> ImgBB কনফিগার করা আছে</div>`
+    :`<div class="cld-status cld-bad"><i class="fa fa-exclamation-triangle"></i> এখনো ImgBB সেটআপ করা হয়নি।</div>`;
+}
 
-function renderCldStatusBox(){
-  const box=document.getElementById('cldStatusBox');if(!box)return;
-  box.innerHTML=isCldReady()
-    ?`<div class="cld-status cld-ok"><i class="fa fa-check-circle"></i> Cloudinary কনফিগার করা আছে — Cloud: <b>${esc(cldConfig.cloudName)}</b>, Preset: <b>${esc(cldConfig.uploadPreset)}</b></div>`
-    :`<div class="cld-status cld-bad"><i class="fa fa-exclamation-triangle"></i> এখনো Cloudinary সেটআপ করা হয়নি।</div>`;
+function saveBotServerConfig(){
+  const relayUrl=document.getElementById('botServerUrl').value.trim().replace(/\/$/,'');
+  const relayKey=document.getElementById('botServerKey').value.trim();
+  if(!relayUrl||!relayKey){toast('❌ URL ও Admin API Key দুটোই দিতে হবে!');return;}
+  db.ref('botServerConfig').set({relayUrl,relayKey,updatedAt:Date.now()}).then(()=>{
+    botServerCfg={relayUrl,relayKey};toast('✅ Bot Server সংরক্ষণ হয়েছে!');renderBotServerStatusBox();
+  }).catch(err=>toast('❌ Firebase-এ সেভ ব্যর্থ: '+err.message));
+}
+async function testBotServerConfig(){
+  const relayUrl=document.getElementById('botServerUrl').value.trim().replace(/\/$/,'');
+  if(!relayUrl){toast('❌ আগে Bot Server URL দিন');return;}
+  toast('🔄 পরীক্ষা করা হচ্ছে...');
+  try{
+    const r=await fetch(relayUrl+'/api/health');
+    const data=await r.json();
+    toast(data.ok?'✅ সার্ভার চালু আছে ও রেসপন্স করছে!':'⚠️ সার্ভার রেসপন্স করেছে কিন্তু কিছু ঠিক নেই');
+  }catch(e){toast('❌ সার্ভারে পৌঁছানো যায়নি — URL ঠিক আছে তো? সার্ভার চালু আছে তো?');}
+}
+function renderBotServerStatusBox(){
+  const box=document.getElementById('botServerStatusBox');if(!box)return;
+  box.innerHTML=isBotServerReady()
+    ?`<div class="cld-status cld-ok"><i class="fa fa-check-circle"></i> Bot Server কনফিগার করা আছে — ${esc(botServerCfg.relayUrl)}</div>`
+    :`<div class="cld-status cld-bad"><i class="fa fa-exclamation-triangle"></i> এখনো Bot Server সেটআপ করা হয়নি।</div>`;
 }
 function renderUploadWarning(){
   const el=document.getElementById('uploadCldWarning');if(!el)return;
-  el.innerHTML=isCldReady()?'':`<div class="info-box" style="color:#ff8a8a;background:rgba(229,0,0,.08);border-color:rgba(229,0,0,.25)">⚠️ আগে <b onclick="switchTab('cloudinary')" style="cursor:pointer;text-decoration:underline">Cloudinary Setup ট্যাব</b>-এ গিয়ে Cloud Name ও Upload Preset বসিয়ে Save করুন।</div>`;
+  el.innerHTML=isBotServerReady()?'':`<div class="info-box" style="color:#ff8a8a;background:rgba(229,0,0,.08);border-color:rgba(229,0,0,.25)">⚠️ আগে <b onclick="switchTab('storage')" style="cursor:pointer;text-decoration:underline">Storage Setup ট্যাব</b>-এ গিয়ে Bot Server URL ও Key বসিয়ে Save করুন।</div>`;
 }
 
-function uploadToCloudinary(file,resourceType,onProgress){
+// ImgBB-তে সরাসরি ছবি আপলোড (থাম্বনেইলের জন্য) — কোনো ব্যাকএন্ড লাগে না
+function uploadToImgbb(file,onProgress){
   return new Promise((resolve,reject)=>{
-    if(!isCldReady()){reject(new Error('Cloudinary সেটআপ করা হয়নি'));return;}
-    if(resourceType==='video'&&file.size>CHUNK_SIZE)chunkedUpload(file,onProgress).then(resolve).catch(reject);
-    else simpleUpload(file,resourceType,onProgress).then(resolve).catch(reject);
-  });
-}
-function simpleUpload(file,resourceType,onProgress){
-  return new Promise((resolve,reject)=>{
-    const fd=new FormData();fd.append('file',file);fd.append('upload_preset',cldConfig.uploadPreset);
-    if(cldConfig.folder)fd.append('folder',cldConfig.folder);
+    if(!isImgbbReady()){reject(new Error('ImgBB সেটআপ করা হয়নি'));return;}
+    const fd=new FormData();fd.append('image',file);
     const xhr=new XMLHttpRequest();
-    xhr.open('POST',`https://api.cloudinary.com/v1_1/${cldConfig.cloudName}/${resourceType}/upload`);
+    xhr.open('POST',`https://api.imgbb.com/1/upload?key=${imgbbCfg.apiKey}`);
     xhr.upload.onprogress=(e)=>{if(e.lengthComputable&&onProgress)onProgress((e.loaded/e.total)*100);};
     xhr.onload=()=>{try{const res=JSON.parse(xhr.responseText);
-      if(xhr.status>=200&&xhr.status<300&&res.secure_url){onProgress&&onProgress(100);resolve(res);}
+      if(xhr.status>=200&&xhr.status<300&&res.success){onProgress&&onProgress(100);resolve(res.data);}
       else reject(new Error(res.error?.message||'আপলোড ব্যর্থ হয়েছে'));
     }catch(e){reject(e);}};
     xhr.onerror=()=>reject(new Error('নেটওয়ার্ক সমস্যা হয়েছে'));
     xhr.send(fd);
   });
 }
-function chunkedUpload(file,onProgress){
+
+// Bot Server-এর মাধ্যমে ভিডিও Telegram-এ আপলোড (এখন এটাই একমাত্র ও প্রধান ভিডিও স্টোরেজ)
+function uploadVideoToBotServer(file,title,onProgress){
   return new Promise((resolve,reject)=>{
-    const uploadId='mlv-'+Date.now()+'-'+Math.random().toString(36).slice(2,10);
-    const totalSize=file.size;let start=0,attempt=0;
-    const MAX_RETRY=4;   // নেটওয়ার্ক/সার্ভার সমস্যায় একই টুকরো (chunk) সর্বোচ্চ ৪ বার আবার পাঠানো হবে
-    function retryOrFail(msg,retryable){
-      if(retryable&&attempt<MAX_RETRY){attempt++;setTimeout(uploadNextChunk,1500*attempt);}
-      else reject(new Error(msg));
-    }
-    function uploadNextChunk(){
-      const end=Math.min(start+CHUNK_SIZE,totalSize);const chunk=file.slice(start,end);
-      const fd=new FormData();fd.append('file',chunk);fd.append('upload_preset',cldConfig.uploadPreset);
-      if(cldConfig.folder)fd.append('folder',cldConfig.folder);
-      const xhr=new XMLHttpRequest();
-      xhr.open('POST',`https://api.cloudinary.com/v1_1/${cldConfig.cloudName}/video/upload`);
-      xhr.setRequestHeader('X-Unique-Upload-Id',uploadId);
-      xhr.setRequestHeader('Content-Range',`bytes ${start}-${end-1}/${totalSize}`);
-      xhr.upload.onprogress=(e)=>{if(onProgress&&e.lengthComputable){const doneBytes=start+e.loaded;onProgress(Math.min((doneBytes/totalSize)*100,99.5));}};
-      xhr.onload=()=>{
-        if(xhr.status>=200&&xhr.status<300){
-          attempt=0;start=end;
-          if(start<totalSize)uploadNextChunk();
-          else{
-            try{
-              const res=JSON.parse(xhr.responseText);
-              if(!res.secure_url)throw new Error('Cloudinary থেকে ভিডিও লিংক পাওয়া যায়নি — আবার আপলোড করুন');
-              onProgress&&onProgress(100);resolve(res);
-            }catch(e){reject(e);}
-          }
-        }else{
-          let msg='আপলোড ব্যর্থ';try{msg=JSON.parse(xhr.responseText).error?.message||msg;}catch(e){}
-          retryOrFail(msg+' (status '+xhr.status+')',xhr.status===0||xhr.status===429||xhr.status>=500);
-        }
-      };
-      xhr.onerror=()=>retryOrFail('নেটওয়ার্ক সমস্যা হয়েছে — ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন',true);
-      xhr.send(fd);
-    }
-    uploadNextChunk();
+    if(!isBotServerReady()){reject(new Error('Bot Server সেটআপ করা হয়নি — Storage Setup ট্যাবে গিয়ে বসান'));return;}
+    const fd=new FormData();fd.append('video',file);fd.append('title',title);
+    const xhr=new XMLHttpRequest();
+    xhr.open('POST',botServerCfg.relayUrl+'/api/upload-video');
+    xhr.setRequestHeader('x-admin-key',botServerCfg.relayKey);
+    xhr.upload.onprogress=(e)=>{if(e.lengthComputable&&onProgress)onProgress((e.loaded/e.total)*100);};
+    xhr.onload=()=>{
+      try{
+        const res=JSON.parse(xhr.responseText);
+        if(!res.ok){reject(new Error(res.error||'আপলোড ব্যর্থ হয়েছে'));return;}
+        if(res.telegram?.skipped){reject(new Error(res.telegram.reason||'Telegram আপলোড স্কিপ হয়েছে'));return;}
+        if(!res.telegram?.fileId){reject(new Error('Telegram থেকে file_id পাওয়া যায়নি'));return;}
+        onProgress&&onProgress(100);resolve(res.telegram);
+      }catch(e){reject(e);}
+    };
+    xhr.onerror=()=>reject(new Error('সার্ভারে পৌঁছানো যায়নি — Bot Server URL ঠিক আছে তো?'));
+    xhr.send(fd);
   });
 }
 function fmtBytes(b){if(b<1024)return b+' B';if(b<1024*1024)return(b/1024).toFixed(1)+' KB';return(b/(1024*1024)).toFixed(1)+' MB';}
@@ -1653,12 +1637,12 @@ function onThumbUrlChange(){
 }
 async function handleThumbFileSelect(e){
   const file=e.target.files[0];if(!file)return;
-  if(!isCldReady()){toast('❌ প্রথমে Cloudinary সেটআপ করুন!');switchTab('cloudinary');return;}
+  if(!isImgbbReady()){toast('❌ প্রথমে ImgBB সেটআপ করুন!');switchTab('storage');return;}
   const wrap=document.getElementById('thumbProgressWrap'),fill=document.getElementById('thumbProgressFill'),txt=document.getElementById('thumbProgressTxt'),pct=document.getElementById('thumbProgressPct');
   wrap.classList.add('show');txt.innerText='থাম্বনেইল আপলোড হচ্ছে... ('+fmtBytes(file.size)+')';fill.style.width='0%';pct.innerText='0%';
   try{
-    const res=await uploadToCloudinary(file,'image',(p)=>{fill.style.width=p+'%';pct.innerText=Math.round(p)+'%';});
-    document.getElementById('vThumb').value=res.secure_url;onThumbUrlChange();
+    const data=await uploadToImgbb(file,(p)=>{fill.style.width=p+'%';pct.innerText=Math.round(p)+'%';});
+    document.getElementById('vThumb').value=data.url;onThumbUrlChange();
     txt.innerText='✅ আপলোড সম্পন্ন!';toast('✅ থাম্বনেইল আপলোড হয়েছে!');
     setTimeout(()=>wrap.classList.remove('show'),1800);
   }catch(err){txt.innerText='❌ ব্যর্থ: '+err.message;toast('❌ থাম্বনেইল আপলোড ব্যর্থ: '+err.message);}
@@ -1666,7 +1650,7 @@ async function handleThumbFileSelect(e){
 }
 
 // ─── MULTI-PART VIDEO SYSTEM ───────────────────────────────────
-function addVideoPart(){videoParts.push({label:'Part '+(videoParts.length+1),link:'',uploading:false});renderVideoParts();}
+function addVideoPart(){videoParts.push({label:'Part '+(videoParts.length+1),telegramFileId:'',uploading:false});renderVideoParts();}
 function removeVideoPart(i){
   const p=videoParts[i];
   if(p&&p.job)cancelPartJob(i);
@@ -1682,9 +1666,9 @@ function renderVideoParts(){
         <input class="part-label-inp" placeholder="Part লেবেল" value="${esc(p.label||'Part '+(i+1))}" oninput="videoParts[${i}].label=this.value">
         <button class="part-remove" onclick="removeVideoPart(${i})"><i class="fa fa-times"></i></button>
       </div>
-      <input class="part-link-inp" id="partLink${i}" placeholder="ভিডিও লিংক (অটো বসবে)" value="${esc(p.link||'')}" oninput="videoParts[${i}].link=this.value">
+      <input class="part-link-inp" id="partFileId${i}" placeholder="Telegram File ID (অটো বসবে)" value="${esc(p.telegramFileId||'')}" oninput="videoParts[${i}].telegramFileId=this.value">
       <button class="btn btn-blue btn-sm" style="width:100%" onclick="document.getElementById('partFile${i}').click()"><i class="fa fa-video"></i> গ্যালারি থেকে Part ${i+1} ভিডিও আপলোড</button>
-      <div class="part-hint"><i class="fa fa-info-circle"></i> MP4 (H.264) ভিডিও, সর্বোচ্চ ৯০ MB — সরাসরি Cloudinary-তে আপলোড হবে। বড় ভিডিও আগে HandBrake দিয়ে ছোট করে নিন।</div>
+      <div class="part-hint"><i class="fa fa-info-circle"></i> MP4 (H.264) ভিডিও, সর্বোচ্চ ~৪৫ MB (Telegram Bot API-র ৫০ MB লিমিট অনুযায়ী) — সরাসরি Telegram বটে আপলোড হবে। বড় ভিডিও আগে HandBrake দিয়ে ছোট করে নিন।</div>
       <input type="file" id="partFile${i}" class="file-hidden" accept="video/*" onchange="handlePartFileSelect(event,${i})">
       <div class="upload-progress-wrap" id="partProgressWrap${i}">
         <div class="upload-progress-bar-bg"><div class="upload-progress-bar-fill" id="partProgressFill${i}"></div></div>
@@ -1711,9 +1695,9 @@ function setPartUI(part,ui){
 }
 
 // ─── VIDEO AUTO-COMPRESSION (FFmpeg.wasm — runs 100% in the browser) ───
-const VIDEO_DIRECT_LIMIT=95*1000*1000;   // <= 95 MB → সরাসরি আপলোড (Cloudinary ফ্রি প্ল্যানে ভিডিও সীমা ~100 MB, তাই ফাঁক রাখা হয়েছে)
+const VIDEO_DIRECT_LIMIT=45*1000*1000;   // <= 45 MB → সরাসরি আপলোড (Telegram Bot API-র হার্ড লিমিট ৫০ MB, তাই একটু ফাঁক রাখা হয়েছে)
 const BROWSER_COMPRESSION_ENABLED=false; // false = বড় ভিডিওর জন্য ব্রাউজারে কম্প্রেশন বন্ধ (মোবাইলে ঘণ্টার পর ঘণ্টা লাগে/আটকে যায়)। পুরনো আচরণ চাইলে true করুন।
-const VIDEO_TARGET_BYTES=84*1024*1024;   // > 95 MB   → compress aiming for ~84 MB (headroom under the limit)
+const VIDEO_TARGET_BYTES=40*1024*1024;   // > 45 MB   → compress aiming for ~40 MB (headroom under Telegram's 50 MB limit)
 const FFMPEG_VERSION='0.12.10',FFMPEG_UTIL_VERSION='0.12.1',FFMPEG_CORE_VERSION='0.12.6';
 const FFMPEG_CDN_ROOTS=['https://cdn.jsdelivr.net/npm','https://unpkg.com'];   // tried in order
 const FFMPEG_CORE_WASM_APPROX_BYTES=32*1000*1000;                              // only used for the download % display
@@ -1947,10 +1931,10 @@ function isSupportedVideoFile(file){
   return ['mp4','m4v','webm'].includes(ext)||file.type==='video/mp4'||file.type==='video/webm';
 }
 async function showOversizeGuide(part,file){
-  setPartUI(part,{show:true,pct:0,txt:'⚠️ '+fmtBytes(file.size)+' — ৯০ MB-র নিচে নামিয়ে আবার আপলোড করুন',right:'',canCancel:false});
+  setPartUI(part,{show:true,pct:0,txt:'⚠️ '+fmtBytes(file.size)+' — ৪৫ MB-র নিচে নামিয়ে আবার আপলোড করুন',right:'',canCancel:false});
   const meta=await probeVideoMeta(file);
   const dur=meta&&isFinite(meta.duration)&&meta.duration>0?meta.duration:0;
-  let msg='⚠️ ফাইলটি '+fmtBytes(file.size)+' — Cloudinary ফ্রি প্ল্যানে ১০০ MB-র বেশি ভিডিও আপলোড হয় না।\n\nআপলোডের আগে HandBrake (পিসি, ফ্রি) বা মোবাইলের কম্প্রেস অ্যাপ দিয়ে ৯০ MB-র নিচে নামিয়ে আনুন।\n';
+  let msg='⚠️ ফাইলটি '+fmtBytes(file.size)+' — Telegram Bot API-তে ৫০ MB-র বেশি ভিডিও আপলোড হয় না।\n\nআপলোডের আগে HandBrake (পিসি, ফ্রি) বা মোবাইলের কম্প্রেস অ্যাপ দিয়ে ৪৫ MB-র নিচে নামিয়ে আনুন।\n';
   if(dur){
     const totalK=Math.floor((VIDEO_TARGET_BYTES*8/1000)/dur);
     const audioK=totalK<300?48:64;
@@ -1964,41 +1948,10 @@ async function showOversizeGuide(part,file){
   alert(msg);
 }
 
-// ★ NEW: ব্রাউজার থেকে সরাসরি Telegram Bot API কল করে ভিডিওটা ব্যাকআপ চ্যানেলে পাঠানো —
-// কোনো আলাদা সার্ভার লাগে না, সরাসরি অ্যাডমিন প্যানেল থেকেই হয়
-async function relayToTelegramInBackground(file,title){
-  const statusEl=document.getElementById('vTelegramStatus');
-  if(!telegramBotCfg.botToken||!telegramBotCfg.channelId){return;} // সেটআপ করা না থাকলে চুপচাপ স্কিপ
-  if(statusEl)statusEl.innerHTML='⏳ Telegram-এ ব্যাকগ্রাউন্ডে পাঠানো হচ্ছে...';
-  try{
-    const fd=new FormData();
-    fd.append('chat_id',telegramBotCfg.channelId);
-    fd.append('caption',title);
-    fd.append('supports_streaming','true');
-    fd.append('video',file,(title||'video')+'.mp4');
-    const r=await fetch(`https://api.telegram.org/bot${telegramBotCfg.botToken}/sendVideo`,{method:'POST',body:fd});
-    const data=await r.json();
-    if(data.ok){
-      const fileId=data.result.video?.file_id||data.result.document?.file_id;
-      if(fileId){
-        document.getElementById('vTelegramFileId').value=fileId;
-        if(statusEl)statusEl.innerHTML='✅ Telegram ব্যাকআপ তৈরি হয়েছে';
-        toast('✅ Telegram ব্যাকআপও তৈরি হয়েছে!');
-      }
-    }else{
-      const reason=data.description||'অজানা এরর';
-      if(statusEl)statusEl.innerHTML='⚠️ Telegram ব্যাকআপ হয়নি: '+esc(reason)+(reason.match(/too large|413/i)?' (৫০ এমবির বেশি ফাইল সাধারণ Bot API-তে যায় না)':'');
-      console.warn('Telegram sendVideo failed:',reason);
-    }
-  }catch(e){
-    if(statusEl)statusEl.innerHTML='⚠️ Telegram ব্যাকআপ ব্যর্থ (Cloudinary আপলোড অক্ষত আছে): '+esc(e.message);
-    console.warn('Telegram sendVideo error:',e.message);
-  }
-}
 async function handlePartFileSelect(e,i){
   const file=e.target.files[0];e.target.value='';
   if(!file)return;
-  if(!isCldReady()){toast('❌ প্রথমে Cloudinary সেটআপ করুন!');switchTab('cloudinary');return;}
+  if(!isBotServerReady()){toast('❌ প্রথমে Bot Server সেটআপ করুন!');switchTab('storage');return;}
   const part=videoParts[i];if(!part)return;
   if(part.uploading){toast('⏳ This part is already being processed.');return;}
   const needsCompression=file.size>VIDEO_DIRECT_LIMIT;
@@ -2016,20 +1969,22 @@ async function handlePartFileSelect(e,i){
       toUpload=await compressVideoInBrowser(file,job,(ui)=>setPartUI(part,ui));
       _compressBusy=false;disposeFFmpeg();
     }
-    setPartUI(part,{show:true,pct:0,txt:'Uploading to Cloudinary (0%)...',right:fmtBytes(toUpload.size),canCancel:false});
-    const res=await uploadToCloudinary(toUpload,'video',(p)=>{
+    setPartUI(part,{show:true,pct:0,txt:'Telegram-এ আপলোড হচ্ছে (0%)...',right:fmtBytes(toUpload.size),canCancel:false});
+    const title=document.getElementById('vTitle').value.trim()||'Untitled';
+    const telegram=await uploadVideoToBotServer(toUpload,title,(p)=>{
       const pc=Math.min(100,Math.round(p));
-      setPartUI(part,{pct:pc,txt:`Uploading to Cloudinary (${pc}%)...`});
+      setPartUI(part,{pct:pc,txt:`Telegram-এ আপলোড হচ্ছে (${pc}%)...`});
     });
-    part.link=res.secure_url;
+    part.telegramFileId=telegram.fileId;
     const idx=videoParts.indexOf(part);
-    const linkInp=idx>=0?document.getElementById('partLink'+idx):null;if(linkInp)linkInp.value=res.secure_url;
-    // ★ NEW: Cloudinary আপলোড শেষ হওয়ার সাথে সাথে, যদি Telegram Relay সার্ভার সেটআপ করা থাকে,
-    // একই ফাইল ব্যাকগ্রাউন্ডে Telegram-এও পাঠানো হয় (fallback mode-এর জন্য ব্যাকআপ হিসেবে) —
-    // এতে মূল আপলোড প্রক্রিয়া আটকে থাকে না (non-blocking)।
-    if(idx===0)relayToTelegramInBackground(toUpload,document.getElementById('vTitle').value.trim()||'Untitled');
+    const fileIdInp=idx>=0?document.getElementById('partFileId'+idx):null;if(fileIdInp)fileIdInp.value=telegram.fileId;
+    // Part 1 (প্রথম পার্ট)-এর file_id-টাই ভিডিওর প্রধান/ডিফল্ট ডেলিভারি আইডি হিসেবে ব্যবহার হয়
+    if(idx===0){
+      document.getElementById('vTelegramFileId').value=telegram.fileId;
+      document.getElementById('vTelegramStatus').innerHTML='✅ Telegram-এ আপলোড সম্পন্ন হয়েছে';
+    }
     setPartUI(part,{pct:100,txt:'✅ আপলোড সম্পন্ন!',right:needsCompression?fmtBytes(file.size)+' → '+fmtBytes(toUpload.size):fmtBytes(toUpload.size)});
-    toast('✅ Part '+(videoParts.indexOf(part)+1)+' আপলোড হয়েছে!');
+    toast('✅ Part '+(videoParts.indexOf(part)+1)+' Telegram-এ আপলোড হয়েছে!');
     setTimeout(()=>setPartUI(part,{show:false}),2500);
   }catch(err){
     if(err&&err.cancelled){setPartUI(part,{show:true,pct:0,txt:'Cancelled',right:'',canCancel:false});toast('Compression cancelled.');setTimeout(()=>setPartUI(part,{show:false}),2000);}
@@ -2193,21 +2148,20 @@ function renderVideoList(){
 }
 function doSaveVideo(){
   const title=document.getElementById('vTitle').value.trim();
-  const link=videoParts.length?(videoParts[0].link||''):'';
   if(!title){toast('❌ Title দিন!');return;}
-  if(!videoParts.length||!videoParts.some(p=>p.link)){toast('❌ কমপক্ষে একটা Part-এ ভিডিও লিংক/আপলোড দিন!');return;}
+  if(!videoParts.length||!videoParts.some(p=>p.telegramFileId)){toast('❌ কমপক্ষে একটা Part-এ ভিডিও আপলোড দিন!');return;}
   if(videoParts.some(p=>p.uploading)){toast('⏳ আপলোড এখনো চলছে, অপেক্ষা করুন...');return;}
   const orderRaw=document.getElementById('vOrderNum').value.trim();
   const orderVal=orderRaw?parseInt(orderRaw,10):suggestNextVideoOrder();
   const v={
-    title,link,
+    title,
     thumb:document.getElementById('vThumb').value.trim(),
     desc:document.getElementById('vDesc').value.trim(),
     category:document.getElementById('vCat').value,
     premiumContent:document.getElementById('vPremium').checked,
     showOnHome:document.getElementById('vShowHome').checked,
     telegramFileId:document.getElementById('vTelegramFileId').value.trim(),
-    parts:videoParts.filter(p=>p.link).map(p=>({label:p.label,link:p.link})),
+    parts:videoParts.filter(p=>p.telegramFileId).map(p=>({label:p.label,telegramFileId:p.telegramFileId})),
     order:orderVal
   };
   if(!v.thumb){toast('❌ থাম্বনেইল দিন!');return;}
@@ -2239,7 +2193,7 @@ function editVideo(key){
   document.getElementById('vShowHome').checked=m.showOnHome!==false;
   document.getElementById('vTelegramFileId').value=m.telegramFileId||'';
   document.getElementById('vTelegramStatus').innerHTML=m.telegramFileId?'✅ Telegram ব্যাকআপ আছে (fallback mode-এর জন্য প্রস্তুত)':'⚪ এখনো তৈরি হয়নি — Part 1 ভিডিও আবার আপলোড করলে তৈরি হবে';
-  videoParts=(m.parts&&m.parts.length)?m.parts.map(p=>({label:p.label,link:p.link,uploading:false})):(m.link?[{label:'Part 1',link:m.link,uploading:false}]:[]);
+  videoParts=(m.parts&&m.parts.length)?m.parts.map(p=>({label:p.label,telegramFileId:p.telegramFileId,uploading:false})):(m.telegramFileId?[{label:'Part 1',telegramFileId:m.telegramFileId,uploading:false}]:[]);
   renderVideoParts();
   setv('vAdsRequired',m.adsRequired||3);
   const mode=m.adMode==='direct'?'direct':'network';
